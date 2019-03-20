@@ -46,6 +46,7 @@
 PURPOSE: Test for ZC application written using ZDO.
 */
 
+
 #include "zb_common.h"
 #include "zb_scheduler.h"
 #include "zb_bufpool.h"
@@ -57,26 +58,35 @@ PURPOSE: Test for ZC application written using ZDO.
 
 #include "led.h"
 
+#ifndef ZB_ED_ROLE
+#error define ZB_ED_ROLE to compile ze tests
+#endif
 /*! \addtogroup ZB_TESTS */
 /*! @{ */
-
-#ifndef ZB_COORDINATOR_ROLE
-#error Coordinator role is not compiled!
-#endif
-
 #ifndef ZB_SECURITY
 #error Define ZB_SECURITY
 #endif
 
+void send_data(zb_uint8_t param) ZB_CALLBACK;
 
-  
+void sent_payloaded_command(zb_uint8_t param, commands_t command);
+void sent_command(zb_uint8_t param, commands_t command);
 
+void bulb_sent_on_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_sent_off_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_sent_toggle_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_sent_brightness_up_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_sent_brightness_down_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_sent_brightness_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_sent_color_command(zb_uint8_t param) ZB_CALLBACK;
 
-zb_ieee_addr_t g_ieee_addr = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08};
-zb_uint8_t g_key[16] = { 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0, 0, 0, 0, 0, 0, 0, 0};
+void get_buffer(zb_uint8_t param) ZB_CALLBACK;
 
+/*
+  ZE joins to ZC(ZR), then sends APS packet.
+*/
 
-void data_indication(zb_uint8_t param) ZB_CALLBACK;
+zb_ieee_addr_t g_ieee_addr = {0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02};
 
 MAIN()
 {
@@ -90,17 +100,14 @@ MAIN()
   }
 #endif
 
-
   /* Init device, load IB values from nvram or set it to default */
 #ifndef ZB8051
-  ZB_INIT("zdo_zc", argv[1], argv[2]);
+  ZB_INIT("zdo_ze", argv[1], argv[2]);
 #else
-  ZB_INIT("zdo_zc", "1", "1");
+  ZB_INIT("zdo_ze", "3", "3");
 #endif
-  ZB_IEEE_ADDR_COPY(ZB_PIB_EXTENDED_ADDRESS(), &g_ieee_addr);
-  /* let's always be coordinator */
-  ZB_AIB().aps_designated_coordinator = 1;
-  zb_secur_setup_preconfigured_key(g_key, 0);
+
+  ZB_IEEE_ADDR_COPY(ZB_PIB_EXTENDED_ADDRESS(), g_ieee_addr);
 
   if (zdo_dev_start() != RET_OK)
   {
@@ -112,77 +119,128 @@ MAIN()
   }
 
   TRACE_DEINIT();
-
   MAIN_RETURN(0);
 }
-
 
 
 void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = ZB_BUF_FROM_REF(param);
-  TRACE_MSG(TRACE_APS3, ">>zb_zdo_startup_complete status %d", (FMT__D, (int)buf->u.hdr.status));
   if (buf->u.hdr.status == 0)
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
-    zb_af_set_data_indication(data_indication);
+    send_data(param);
+    ZB_SCHEDULE_ALARM(get_buffer, 0, ZB_TIME_ONE_SECOND);
   }
   else
   {
-    TRACE_MSG(TRACE_ERROR, "Device start FAILED status %d", (FMT__D, (int)buf->u.hdr.status));
+    TRACE_MSG(TRACE_ERROR, "Device started FAILED status %d", (FMT__D, (int)buf->u.hdr.status));
+    zb_free_buf(buf);
   }
-  zb_free_buf(buf);
 }
 
-
-/*
-   Trivial test: dump all APS data received
- */
-
-
-void data_indication(zb_uint8_t param) ZB_CALLBACK
+void sent_command(zb_uint8_t param, commands_t command)
 {
-  zb_ushort_t i;
-  zb_uint8_t *ptr;
-  zb_uint32_t color = 0;
-  zb_buf_t *asdu = (zb_buf_t *)ZB_BUF_FROM_REF(param);
+    zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
+    zb_uint8_t *ptr;
+    bulb_addr_t tail = *((bulb_addr_t *)ZB_GET_BUF_TAIL(buf, sizeof(bulb_addr_t)));
+    zb_apsde_data_req_t *req = ZB_GET_BUF_TAIL(buf, sizeof(zb_apsde_data_req_t));
 
-  /* Remove APS header from the packet */
-  ZB_APS_HDR_CUT_P(asdu, ptr);
+    ZB_BUF_INITIAL_ALLOC(buf, (sizeof command), ptr);
+    req->dst_addr.addr_short = tail.addr; /* send to ZC */
+    req->addr_mode = ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
+    req->tx_options = ZB_APSDE_TX_OPT_ACK_TX;
+    req->radius = 1;
+    req->profileid = 2;
+    req->src_endpoint = 10;
+    req->dst_endpoint = 10;
 
-  TRACE_MSG(TRACE_APS2, "apsde_data_indication: packet %p len %d handle 0x%x data %x", (FMT__P_D_D_D,
-                         asdu, (int)ZB_BUF_LEN(asdu), asdu->u.hdr.status, (int)(ptr[0])));
+    buf->u.hdr.handle = 0x11;
 
-  switch (ptr[0])
-  {
-      case ON:
-          TRACE_MSG(TRACE_APS2, "recieved on command", (FMT__0));
-          break;
-      case OFF:
-          TRACE_MSG(TRACE_APS2, "recieved off command", (FMT__0));
-          break;
-      case TOGGLE:
-          TRACE_MSG(TRACE_APS2, "recieved toggle command", (FMT__0));
-          break;
-      case BRIGHTNESS_UP:
-          TRACE_MSG(TRACE_APS2, "recieved brightness_up command", (FMT__0));
-          break;
-      case BRIGHTNESS_DOWN:
-          TRACE_MSG(TRACE_APS2, "recieved brightness_down command", (FMT__0));
-          break;
-      case BRIGHTNESS:
-          TRACE_MSG(TRACE_APS2, "recieved brightness command", (FMT__0));
-          break;
-      case COLOR:
-          memcpy(&color, ptr + sizeof(zb_uint16_t) , sizeof(zb_uint32_t));
-          TRACE_MSG(TRACE_APS2, "recieved color command. color: %x", (FMT__D, color));
-          break;
-      default:
-          TRACE_MSG(TRACE_APS2, "recieved unknown command", (FMT__0));
-          break;
-  }
+    memcpy(ptr, &command, sizeof command);
+  
+    TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x", (FMT__D, command));
+    ZB_SCHEDULE_CALLBACK(zb_apsde_data_request, ZB_REF_FROM_BUF(buf));
+}
 
-  zb_free_buf(asdu);
+void sent_payloaded_command(zb_uint8_t param,  commands_t command) ZB_CALLBACK
+{
+    zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
+    zb_uint8_t *ptr;
+    bulb_addr_payload_t tail = *((bulb_addr_payload_t*)ZB_GET_BUF_TAIL(buf, sizeof(bulb_addr_payload_t)));
+    zb_apsde_data_req_t *req = ZB_GET_BUF_TAIL(buf, sizeof(zb_apsde_data_req_t));
+
+    ZB_BUF_INITIAL_ALLOC(buf, (sizeof command) + (sizeof tail.payload), ptr);
+    req->dst_addr.addr_short = tail.addr; /* send to ZC */
+    req->addr_mode = ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
+    req->tx_options = ZB_APSDE_TX_OPT_ACK_TX;
+    req->radius = 1;
+    req->profileid = 2;
+    req->src_endpoint = 10;
+    req->dst_endpoint = 10;
+
+    buf->u.hdr.handle = 0x11;
+
+    memcpy(ptr, &command, sizeof command);
+    memcpy(ptr + (sizeof command), &(tail.payload), sizeof tail.payload);
+  
+    TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x, color: %x", (FMT__D_D, command, tail.payload));
+    ZB_SCHEDULE_CALLBACK(zb_apsde_data_request, ZB_REF_FROM_BUF(buf));
+}
+
+void bulb_sent_on_command(zb_uint8_t param) ZB_CALLBACK
+{
+    sent_command(param, ON);
+}
+
+void bulb_sent_off_command(zb_uint8_t param) ZB_CALLBACK
+{
+    sent_command(param, OFF);
+}
+
+void bulb_sent_toggle_command(zb_uint8_t param) ZB_CALLBACK
+{
+    sent_command(param, TOGGLE);
+}
+
+void bulb_sent_brightness_up_command(zb_uint8_t param) ZB_CALLBACK
+{
+    sent_command(param, BRIGHTNESS_UP);
+}
+
+void bulb_sent_brightness_down_command(zb_uint8_t param) ZB_CALLBACK
+{
+    sent_command(param, BRIGHTNESS_DOWN);
+}
+
+void bulb_sent_brightness_command(zb_uint8_t param) ZB_CALLBACK
+{
+    sent_payloaded_command(param, BRIGHTNESS);
+}
+
+void bulb_sent_color_command(zb_uint8_t param) ZB_CALLBACK
+{
+    sent_payloaded_command(param, COLOR);
+}
+
+void get_buffer(zb_uint8_t param) ZB_CALLBACK
+{
+    ZB_GET_OUT_BUF_DELAYED(send_data);
+    ZB_SCHEDULE_ALARM(get_buffer, 0, ZB_TIME_ONE_SECOND);
+}
+
+void send_data(zb_uint8_t param) ZB_CALLBACK
+{
+    zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
+    zb_uint8_t *ptr;
+    bulb_addr_payload_t* tail;
+
+    tail = ZB_GET_BUF_TAIL(buf, sizeof( bulb_addr_payload_t));
+
+    tail->addr = 0;
+    tail->payload = 0xbeef;
+
+    ZB_SCHEDULE_CALLBACK(bulb_sent_color_command, param);
 }
 
 /*! @} */
