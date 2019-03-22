@@ -68,13 +68,8 @@ PURPOSE: Test for ZC application written using ZDO.
 #error Define ZB_SECURITY
 #endif
 
-
-  
-
-
 zb_ieee_addr_t g_ieee_addr = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08};
 zb_uint8_t g_key[16] = { 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0, 0, 0, 0, 0, 0, 0, 0};
-
 
 void data_indication(zb_uint8_t param) ZB_CALLBACK;
 
@@ -89,8 +84,6 @@ MAIN()
     return 0;
   }
 #endif
-
-
   /* Init device, load IB values from nvram or set it to default */
 #ifndef ZB8051
   ZB_INIT("zdo_zc", argv[1], argv[2]);
@@ -116,8 +109,6 @@ MAIN()
   MAIN_RETURN(0);
 }
 
-
-
 void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -134,26 +125,20 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   zb_free_buf(buf);
 }
 
-
-/*
-   Trivial test: dump all APS data received
- */
-
-
 void data_indication(zb_uint8_t param) ZB_CALLBACK
 {
   zb_ushort_t i;
-  zb_uint8_t *ptr;
-  zb_uint32_t color = 0;
+  commands_t *command;
+  bulb_send_payload_t *payload;
   zb_buf_t *asdu = (zb_buf_t *)ZB_BUF_FROM_REF(param);
 
   /* Remove APS header from the packet */
-  ZB_APS_HDR_CUT_P(asdu, ptr);
+  ZB_APS_HDR_CUT_P(asdu, command);
 
-  TRACE_MSG(TRACE_APS2, "apsde_data_indication: packet %p len %d handle 0x%x data %x", (FMT__P_D_D_D,
-                         asdu, (int)ZB_BUF_LEN(asdu), asdu->u.hdr.status, (int)(ptr[0])));
+  TRACE_MSG(TRACE_APS2, "apsde_data_indication: packet %p len %d handle 0x%x command: %x", (FMT__P_D_D_D,
+                         asdu, (int)ZB_BUF_LEN(asdu), asdu->u.hdr.status, (int)(*command)));
 
-  switch (ptr[0])
+  switch (*command)
   {
       case ON:
           TRACE_MSG(TRACE_APS2, "recieved on command", (FMT__0));
@@ -171,11 +156,12 @@ void data_indication(zb_uint8_t param) ZB_CALLBACK
           TRACE_MSG(TRACE_APS2, "recieved brightness_down command", (FMT__0));
           break;
       case BRIGHTNESS:
-          TRACE_MSG(TRACE_APS2, "recieved brightness command", (FMT__0));
+          payload = (bulb_send_payload_t*)command;
+          TRACE_MSG(TRACE_APS2, "recieved brightness command. brightness: %x", (FMT__D, payload->payload));
           break;
       case COLOR:
-          memcpy(&color, ptr + sizeof(zb_uint16_t) , sizeof(zb_uint32_t));
-          TRACE_MSG(TRACE_APS2, "recieved color command. color: %x", (FMT__D, color));
+          payload = (bulb_send_payload_t*)command;
+          TRACE_MSG(TRACE_APS2, "recieved color command. color: %x", (FMT__D, payload->payload));
           break;
       default:
           TRACE_MSG(TRACE_APS2, "recieved unknown command", (FMT__0));

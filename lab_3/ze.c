@@ -67,24 +67,21 @@ PURPOSE: Test for ZC application written using ZDO.
 #error Define ZB_SECURITY
 #endif
 
-void send_data(zb_uint8_t param) ZB_CALLBACK;
+commands_t command_cntr = ON;
 
-void sent_payloaded_command(zb_uint8_t param, commands_t command);
-void sent_command(zb_uint8_t param, commands_t command);
+void test_send_data(zb_uint8_t param) ZB_CALLBACK;
+void test_get_buffer(zb_uint8_t param) ZB_CALLBACK;
 
-void bulb_sent_on_command(zb_uint8_t param) ZB_CALLBACK;
-void bulb_sent_off_command(zb_uint8_t param) ZB_CALLBACK;
-void bulb_sent_toggle_command(zb_uint8_t param) ZB_CALLBACK;
-void bulb_sent_brightness_up_command(zb_uint8_t param) ZB_CALLBACK;
-void bulb_sent_brightness_down_command(zb_uint8_t param) ZB_CALLBACK;
-void bulb_sent_brightness_command(zb_uint8_t param) ZB_CALLBACK;
-void bulb_sent_color_command(zb_uint8_t param) ZB_CALLBACK;
+void send_payloaded_command(zb_uint8_t param, commands_t command);
+void send_command(zb_uint8_t param, commands_t command);
 
-void get_buffer(zb_uint8_t param) ZB_CALLBACK;
-
-/*
-  ZE joins to ZC(ZR), then sends APS packet.
-*/
+void bulb_send_on_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_off_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_toggle_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_brightness_up_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_brightness_down_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_brightness_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_color_command(zb_uint8_t param) ZB_CALLBACK;
 
 zb_ieee_addr_t g_ieee_addr = {0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02};
 
@@ -129,8 +126,9 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   if (buf->u.hdr.status == 0)
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
-    send_data(param);
-    ZB_SCHEDULE_ALARM(get_buffer, 0, ZB_TIME_ONE_SECOND);
+    command_cntr = ON;
+    test_send_data(param);
+    ZB_SCHEDULE_ALARM(test_get_buffer, 0, ZB_TIME_ONE_SECOND);
   }
   else
   {
@@ -139,15 +137,15 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   }
 }
 
-void sent_command(zb_uint8_t param, commands_t command)
+void send_command(zb_uint8_t param, commands_t command)
 {
     zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
-    zb_uint8_t *ptr;
-    bulb_addr_t tail = *((bulb_addr_t *)ZB_GET_BUF_TAIL(buf, sizeof(bulb_addr_t)));
+    commands_t *ptr;
+    zb_uint16_t addr = *((zb_uint16_t *)ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t)));
     zb_apsde_data_req_t *req = ZB_GET_BUF_TAIL(buf, sizeof(zb_apsde_data_req_t));
 
     ZB_BUF_INITIAL_ALLOC(buf, (sizeof command), ptr);
-    req->dst_addr.addr_short = tail.addr; /* send to ZC */
+    req->dst_addr.addr_short = addr; 
     req->addr_mode = ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
     req->tx_options = ZB_APSDE_TX_OPT_ACK_TX;
     req->radius = 1;
@@ -157,21 +155,21 @@ void sent_command(zb_uint8_t param, commands_t command)
 
     buf->u.hdr.handle = 0x11;
 
-    memcpy(ptr, &command, sizeof command);
+    *ptr = command;
   
     TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x", (FMT__D, command));
     ZB_SCHEDULE_CALLBACK(zb_apsde_data_request, ZB_REF_FROM_BUF(buf));
 }
 
-void sent_payloaded_command(zb_uint8_t param,  commands_t command) ZB_CALLBACK
+void send_payloaded_command(zb_uint8_t param,  commands_t command) ZB_CALLBACK
 {
     zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
-    zb_uint8_t *ptr;
-    bulb_addr_payload_t tail = *((bulb_addr_payload_t*)ZB_GET_BUF_TAIL(buf, sizeof(bulb_addr_payload_t)));
+    bulb_send_payload_t* ptr;
+    bulb_addr_payload_t tail = *((bulb_addr_payload_t *)ZB_GET_BUF_TAIL(buf, sizeof(bulb_addr_payload_t)));
     zb_apsde_data_req_t *req = ZB_GET_BUF_TAIL(buf, sizeof(zb_apsde_data_req_t));
 
-    ZB_BUF_INITIAL_ALLOC(buf, (sizeof command) + (sizeof tail.payload), ptr);
-    req->dst_addr.addr_short = tail.addr; /* send to ZC */
+    ZB_BUF_INITIAL_ALLOC(buf, sizeof(bulb_send_payload_t), ptr);
+    req->dst_addr.addr_short = tail.addr; 
     req->addr_mode = ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
     req->tx_options = ZB_APSDE_TX_OPT_ACK_TX;
     req->radius = 1;
@@ -181,66 +179,98 @@ void sent_payloaded_command(zb_uint8_t param,  commands_t command) ZB_CALLBACK
 
     buf->u.hdr.handle = 0x11;
 
-    memcpy(ptr, &command, sizeof command);
-    memcpy(ptr + (sizeof command), &(tail.payload), sizeof tail.payload);
+    ptr->command = command;
+    ptr->payload = tail.payload;
   
-    TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x, color: %x", (FMT__D_D, command, tail.payload));
+    TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x, payload: %x", (FMT__D_D, command, tail.payload));
     ZB_SCHEDULE_CALLBACK(zb_apsde_data_request, ZB_REF_FROM_BUF(buf));
 }
 
-void bulb_sent_on_command(zb_uint8_t param) ZB_CALLBACK
+void bulb_send_on_command(zb_uint8_t param) ZB_CALLBACK
 {
-    sent_command(param, ON);
+    send_command(param, ON);
 }
 
-void bulb_sent_off_command(zb_uint8_t param) ZB_CALLBACK
+void bulb_send_off_command(zb_uint8_t param) ZB_CALLBACK
 {
-    sent_command(param, OFF);
+    send_command(param, OFF);
 }
 
-void bulb_sent_toggle_command(zb_uint8_t param) ZB_CALLBACK
+void bulb_send_toggle_command(zb_uint8_t param) ZB_CALLBACK
 {
-    sent_command(param, TOGGLE);
+    send_command(param, TOGGLE);
 }
 
-void bulb_sent_brightness_up_command(zb_uint8_t param) ZB_CALLBACK
+void bulb_send_brightness_up_command(zb_uint8_t param) ZB_CALLBACK
 {
-    sent_command(param, BRIGHTNESS_UP);
+    send_command(param, BRIGHTNESS_UP);
 }
 
-void bulb_sent_brightness_down_command(zb_uint8_t param) ZB_CALLBACK
+void bulb_send_brightness_down_command(zb_uint8_t param) ZB_CALLBACK
 {
-    sent_command(param, BRIGHTNESS_DOWN);
+    send_command(param, BRIGHTNESS_DOWN);
 }
 
-void bulb_sent_brightness_command(zb_uint8_t param) ZB_CALLBACK
+void bulb_send_brightness_command(zb_uint8_t param) ZB_CALLBACK
 {
-    sent_payloaded_command(param, BRIGHTNESS);
+    send_payloaded_command(param, BRIGHTNESS);
 }
 
-void bulb_sent_color_command(zb_uint8_t param) ZB_CALLBACK
+void bulb_send_color_command(zb_uint8_t param) ZB_CALLBACK
 {
-    sent_payloaded_command(param, COLOR);
+    send_payloaded_command(param, COLOR);
 }
 
-void get_buffer(zb_uint8_t param) ZB_CALLBACK
+void test_get_buffer(zb_uint8_t param) ZB_CALLBACK
 {
-    ZB_GET_OUT_BUF_DELAYED(send_data);
-    ZB_SCHEDULE_ALARM(get_buffer, 0, ZB_TIME_ONE_SECOND);
+    ZB_GET_OUT_BUF_DELAYED(test_send_data);
+    ZB_SCHEDULE_ALARM(test_get_buffer, 0, ZB_TIME_ONE_SECOND);
 }
 
-void send_data(zb_uint8_t param) ZB_CALLBACK
-{
+void test_send_data(zb_uint8_t param) ZB_CALLBACK
+{          
     zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
-    zb_uint8_t *ptr;
-    bulb_addr_payload_t* tail;
+    if (command_cntr < 5)
+    {
+        zb_uint16_t* tail = ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t));
+        *tail = 0;
+    }
+    else 
+    {
+        bulb_addr_payload_t* tail = ZB_GET_BUF_TAIL(buf, sizeof(bulb_addr_payload_t));
+        tail->addr = 0;
+        tail->payload = 0xda;
+    }
 
-    tail = ZB_GET_BUF_TAIL(buf, sizeof( bulb_addr_payload_t));
+    switch(command_cntr)
+    {
+        case ON:
+            ZB_SCHEDULE_CALLBACK(bulb_send_on_command, param);
+            break;
+        case OFF:
+            ZB_SCHEDULE_CALLBACK(bulb_send_off_command, param);
+            break;
+        case TOGGLE:
+            ZB_SCHEDULE_CALLBACK(bulb_send_toggle_command, param);
+            break;
+        case BRIGHTNESS_DOWN:
+            ZB_SCHEDULE_CALLBACK(bulb_send_brightness_down_command, param);
+            break;
+        case BRIGHTNESS_UP:
+            ZB_SCHEDULE_CALLBACK(bulb_send_brightness_up_command, param);
+            break;
+        case BRIGHTNESS:
+            ZB_SCHEDULE_CALLBACK(bulb_send_brightness_command, param);
+            break;
+        case COLOR:
+            ZB_SCHEDULE_CALLBACK(bulb_send_color_command, param);
+            break;
+    }
 
-    tail->addr = 0;
-    tail->payload = 0xbeef;
-
-    ZB_SCHEDULE_CALLBACK(bulb_sent_color_command, param);
+    if (++command_cntr > COLOR)
+    {
+        command_cntr = ON;
+    }
 }
 
 /*! @} */

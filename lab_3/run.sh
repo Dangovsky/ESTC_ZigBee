@@ -110,12 +110,20 @@ wait_for_start zc
 
 echo ZC STARTED OK
 
-echo "run zr"
-./zr /tmp/zt1.write /tmp/zt1.read &
-endPID=$!
-wait_for_start zr
+#echo "run zr"
 
-echo ZR STARTED OK
+#./zr /tmp/zt1.write /tmp/zt1.read &
+#endPID=$!
+#wait_for_start zr
+
+#echo ZR STARTED OK
+
+echo "run ze"
+./ze /tmp/zt1.write /tmp/zt1.read &
+endPID=$!
+wait_for_start ze
+
+echo ZE STARTED OK
 
 sleep 20
 
