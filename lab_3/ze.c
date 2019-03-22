@@ -144,7 +144,7 @@ void send_command(zb_uint8_t param, commands_t command)
     zb_uint16_t addr = *((zb_uint16_t *)ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t)));
     zb_apsde_data_req_t *req = ZB_GET_BUF_TAIL(buf, sizeof(zb_apsde_data_req_t));
 
-    ZB_BUF_INITIAL_ALLOC(buf, (sizeof command), ptr);
+    ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_uint8_t), ptr); /* if use (sizeof command), we'll have 3 empty bytes*/
     req->dst_addr.addr_short = addr; 
     req->addr_mode = ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
     req->tx_options = ZB_APSDE_TX_OPT_ACK_TX;
@@ -155,9 +155,9 @@ void send_command(zb_uint8_t param, commands_t command)
 
     buf->u.hdr.handle = 0x11;
 
-    *ptr = command;
+    *ptr = (zb_uint8_t)command; /* same purpose */
   
-    TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x", (FMT__D, command));
+    TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x", (FMT__D_D, command));
     ZB_SCHEDULE_CALLBACK(zb_apsde_data_request, ZB_REF_FROM_BUF(buf));
 }
 

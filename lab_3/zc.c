@@ -127,18 +127,16 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
 
 void data_indication(zb_uint8_t param) ZB_CALLBACK
 {
-  zb_ushort_t i;
-  commands_t *command;
   bulb_send_payload_t *payload;
   zb_buf_t *asdu = (zb_buf_t *)ZB_BUF_FROM_REF(param);
 
   /* Remove APS header from the packet */
-  ZB_APS_HDR_CUT_P(asdu, command);
+  ZB_APS_HDR_CUT_P(asdu, payload);
 
   TRACE_MSG(TRACE_APS2, "apsde_data_indication: packet %p len %d handle 0x%x command: %x", (FMT__P_D_D_D,
-                         asdu, (int)ZB_BUF_LEN(asdu), asdu->u.hdr.status, (int)(*command)));
+                         asdu, (int)ZB_BUF_LEN(asdu), asdu->u.hdr.status, (int)(payload->command)));
 
-  switch (*command)
+  switch (payload->command)
   {
       case ON:
           TRACE_MSG(TRACE_APS2, "recieved on command", (FMT__0));
@@ -156,11 +154,9 @@ void data_indication(zb_uint8_t param) ZB_CALLBACK
           TRACE_MSG(TRACE_APS2, "recieved brightness_down command", (FMT__0));
           break;
       case BRIGHTNESS:
-          payload = (bulb_send_payload_t*)command;
           TRACE_MSG(TRACE_APS2, "recieved brightness command. brightness: %x", (FMT__D, payload->payload));
           break;
       case COLOR:
-          payload = (bulb_send_payload_t*)command;
           TRACE_MSG(TRACE_APS2, "recieved color command. color: %x", (FMT__D, payload->payload));
           break;
       default:
