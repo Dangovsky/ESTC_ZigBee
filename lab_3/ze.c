@@ -72,8 +72,7 @@ commands_t command_cntr = ON;
 void test_send_data(zb_uint8_t param) ZB_CALLBACK;
 void test_get_buffer(zb_uint8_t param) ZB_CALLBACK;
 
-void send_payloaded_command(zb_uint8_t param, commands_t command);
-void send_command(zb_uint8_t param, commands_t command);
+void send_payloaded_command(zb_uint8_t param, zb_uint8_t payload_length, zb_uint8_t* payload);
 
 void bulb_send_on_command(zb_uint8_t param) ZB_CALLBACK;
 void bulb_send_off_command(zb_uint8_t param) ZB_CALLBACK;
@@ -127,8 +126,7 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
     command_cntr = ON;
-    test_send_data(param);
-    ZB_SCHEDULE_ALARM(test_get_buffer, 0, ZB_TIME_ONE_SECOND);
+    ZB_SCHEDULE_ALARM(test_get_buffer, param, ZB_TIME_ONE_SECOND);
   }
   else
   {
@@ -137,15 +135,16 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   }
 }
 
-void send_command(zb_uint8_t param, commands_t command)
+void send_payloaded_command(zb_uint8_t param, zb_uint8_t payload_length, zb_uint8_t* payload)
 {
     zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
-    commands_t *ptr;
-    zb_uint16_t addr = *((zb_uint16_t *)ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t)));
+    zb_uint8_t* ptr;
+    zb_uint16_t tail = *((zb_uint16_t *)ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t)));
     zb_apsde_data_req_t *req = ZB_GET_BUF_TAIL(buf, sizeof(zb_apsde_data_req_t));
 
-    ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_uint8_t), ptr); /* if use (sizeof command), we'll have 3 empty bytes*/
-    req->dst_addr.addr_short = addr; 
+    ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_uint8_t) * payload_length, ptr);
+
+    req->dst_addr.addr_short = tail; 
     req->addr_mode = ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
     req->tx_options = ZB_APSDE_TX_OPT_ACK_TX;
     req->radius = 1;
@@ -155,74 +154,65 @@ void send_command(zb_uint8_t param, commands_t command)
 
     buf->u.hdr.handle = 0x11;
 
-    *ptr = (zb_uint8_t)command; /* same purpose */
-  
-    TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x", (FMT__D_D, command));
-    ZB_SCHEDULE_CALLBACK(zb_apsde_data_request, ZB_REF_FROM_BUF(buf));
-}
+    memcpy(ptr, payload, payload_length);
+    
+    if (payload_length > 1)
+    {
+        TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x, payload: %x", (FMT__D_D, *payload, *(payload+1)));
+    }
+    else
+    {
+        TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x ", (FMT__D, *payload));
+    }
 
-void send_payloaded_command(zb_uint8_t param,  commands_t command) ZB_CALLBACK
-{
-    zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
-    bulb_send_payload_t* ptr;
-    bulb_addr_payload_t tail = *((bulb_addr_payload_t *)ZB_GET_BUF_TAIL(buf, sizeof(bulb_addr_payload_t)));
-    zb_apsde_data_req_t *req = ZB_GET_BUF_TAIL(buf, sizeof(zb_apsde_data_req_t));
-
-    ZB_BUF_INITIAL_ALLOC(buf, sizeof(bulb_send_payload_t), ptr);
-    req->dst_addr.addr_short = tail.addr; 
-    req->addr_mode = ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
-    req->tx_options = ZB_APSDE_TX_OPT_ACK_TX;
-    req->radius = 1;
-    req->profileid = 2;
-    req->src_endpoint = 10;
-    req->dst_endpoint = 10;
-
-    buf->u.hdr.handle = 0x11;
-
-    ptr->command = command;
-    ptr->payload = tail.payload;
-  
-    TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x, payload: %x", (FMT__D_D, command, tail.payload));
     ZB_SCHEDULE_CALLBACK(zb_apsde_data_request, ZB_REF_FROM_BUF(buf));
 }
 
 void bulb_send_on_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_command(param, ON);
+    send_payloaded_command(param, 1, "\0");
 }
 
 void bulb_send_off_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_command(param, OFF);
+    send_payloaded_command(param, 1, "\1");
 }
 
 void bulb_send_toggle_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_command(param, TOGGLE);
+    send_payloaded_command(param, 1, "\2");
 }
 
 void bulb_send_brightness_up_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_command(param, BRIGHTNESS_UP);
+    send_payloaded_command(param, 1, "\3");
 }
 
 void bulb_send_brightness_down_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_command(param, BRIGHTNESS_DOWN);
+    send_payloaded_command(param, 1, "\4");
 }
 
 void bulb_send_brightness_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_payloaded_command(param, BRIGHTNESS);
+    zb_uint8_t* tail = ZB_GET_BUF_TAIL(ZB_BUF_FROM_REF(param), sizeof(bulb_tail_t));
+    zb_uint8_t payload [2];
+    payload[0] = '\5';
+    payload[1] = tail[2];
+    send_payloaded_command(param, 2, payload);
 }
 
 void bulb_send_color_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_payloaded_command(param, COLOR);
+    send_payloaded_command(param, 1, "\6");
 }
 
 void test_get_buffer(zb_uint8_t param) ZB_CALLBACK
 {
+    if (param)
+    {
+        test_send_data(param);
+    }
     ZB_GET_OUT_BUF_DELAYED(test_send_data);
     ZB_SCHEDULE_ALARM(test_get_buffer, 0, ZB_TIME_ONE_SECOND);
 }
@@ -230,16 +220,17 @@ void test_get_buffer(zb_uint8_t param) ZB_CALLBACK
 void test_send_data(zb_uint8_t param) ZB_CALLBACK
 {          
     zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
-    if (command_cntr < 5)
+    command_cntr = BRIGHTNESS;
+    if (command_cntr != BRIGHTNESS)
     {
         zb_uint16_t* tail = ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t));
         *tail = 0;
     }
     else 
     {
-        bulb_addr_payload_t* tail = ZB_GET_BUF_TAIL(buf, sizeof(bulb_addr_payload_t));
+        bulb_tail_t* tail = ZB_GET_BUF_TAIL(buf, sizeof(bulb_tail_t));
         tail->addr = 0;
-        tail->payload = 0xda;
+        tail->brightness = 0x11;
     }
 
     switch(command_cntr)
@@ -269,7 +260,7 @@ void test_send_data(zb_uint8_t param) ZB_CALLBACK
 
     if (++command_cntr > COLOR)
     {
-        command_cntr = ON;
+        command_cntr = BRIGHTNESS;
     }
 }
 

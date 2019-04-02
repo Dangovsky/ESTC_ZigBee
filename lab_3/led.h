@@ -12,16 +12,10 @@ typedef enum commands_e
     COLOR
 }commands_t;
 
-typedef struct bulb_addr_payload_s
+typedef struct bulb_tail_s
 {
     zb_uint16_t addr;
-    zb_uint8_t payload;
-}ZB_PACKED_STRUCT bulb_addr_payload_t;
-
-typedef struct bulb_send_payload_s
-{
-    commands_t command;
-    zb_uint8_t payload;
-}ZB_PACKED_STRUCT bulb_send_payload_t;
+    zb_uint8_t brightness;
+}ZB_PACKED_STRUCT bulb_tail_t;
 
 #endif  /* LIBLED_H */
