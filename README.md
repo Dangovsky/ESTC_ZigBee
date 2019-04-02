@@ -10,3 +10,6 @@ Commands:
   * Toggle light bulb
   * Brightness: step up, step down, set to level
   * Toggle the color (we’ll assume that the bulb has a predetermined set of colors)
+
+## [zdo_descriptors](zdo_descriptors)
+ZR use ZDO's discovery function to find active EP on ZC, his input cluster and send him a packet.
