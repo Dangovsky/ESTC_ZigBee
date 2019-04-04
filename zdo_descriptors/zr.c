@@ -145,38 +145,45 @@ void get_buffer(zb_uint8_t param) ZB_CALLBACK
 
 void send_data(zb_uint8_t param) ZB_CALLBACK
 {
+  zb_buf_t* buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
+  zb_uint16_t* tail;
+  zb_zdo_simple_desc_req_t *req; 
   switch (cnt)
   {
     case 0:
+        tail = ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t));
+        *tail = 0;
         zdo_desc_ieee_addr(param);
         break;
     case 1:
+        tail = ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t));
+        *tail = 0;
         zdo_desc_active_ep(param);
         break;
     case 2:
+        req = ZB_GET_BUF_TAIL(buf, sizeof(zb_zdo_simple_desc_req_t));
+        req->nwk_addr = 0;
+        req->endpoint = 11;
         zdo_simple_desk(param);
         break;
     default:
+        tail = ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t));
+        *tail = 0;
         send_command(param);
         break;
   }
-  if (cnt++ > 2)
-  {
-    cnt = 0;
-  }
+  ++cnt;
 }
-
 
 void send_command(zb_uint8_t param) ZB_CALLBACK
 {
     zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
     zb_uint16_t *ptr;
-    /*commands_t *ptr;*/
-    /*zb_uint16_t addr = *((zb_uint16_t *)ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t)));*/
+    zb_uint16_t addr = *((zb_uint16_t *)ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t)));
     zb_apsde_data_req_t *req = ZB_GET_BUF_TAIL(buf, sizeof(zb_apsde_data_req_t));
 
-    ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_uint16_t), ptr); /* if use (sizeof command), we'll have 3 empty bytes*/
-    req->dst_addr.addr_short = 0;
+    ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_uint16_t), ptr);
+    req->dst_addr.addr_short = addr;
     req->addr_mode = ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
     req->tx_options = ZB_APSDE_TX_OPT_ACK_TX;
     req->radius = 1;
@@ -198,11 +205,11 @@ void zdo_desc_ieee_addr(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
   zb_zdo_ieee_addr_req_t *req = NULL;
-  /*zb_uint16_t addr = *((zb_uint16_t *)ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t)));*/
+  zb_uint16_t addr = *((zb_uint16_t *)ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t)));
   
   ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_ieee_addr_req_t), req);
 
-  req->nwk_addr = 0;
+  req->nwk_addr = addr;
   req->request_type = ZB_ZDO_SINGLE_DEV_RESPONSE;
   req->start_index = 0;
   zb_zdo_ieee_addr_req(ZB_REF_FROM_BUF(buf), ieee_addr_callback);
@@ -214,7 +221,6 @@ void ieee_addr_callback(zb_uint8_t param) ZB_CALLBACK
   zb_zdo_nwk_addr_resp_head_t *resp;
   zb_ieee_addr_t ieee_addr;
   zb_uint16_t nwk_addr;
-  zb_address_ieee_ref_t addr_ref;
   
   TRACE_MSG(TRACE_ZDO2, "zb_get_peer_short_addr_cb param %hd", (FMT__H, param));
   
@@ -234,9 +240,10 @@ void zdo_desc_active_ep(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
   zb_zdo_active_ep_req_t *req;
+  zb_uint16_t addr = *((zb_uint16_t *)ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t)));
 
   ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_active_ep_req_t), req);
-  req->nwk_addr = 0; //coord addr
+  req->nwk_addr = addr;
   zb_zdo_active_ep_req(ZB_REF_FROM_BUF(buf), active_ep_callback);
 } 
 
@@ -264,22 +271,21 @@ void active_ep_callback(zb_uint8_t param) ZB_CALLBACK
 void zdo_simple_desk(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
+  zb_zdo_simple_desc_req_t *req_tail = ZB_GET_BUF_TAIL(buf, sizeof(zb_zdo_simple_desc_req_t));
   zb_zdo_simple_desc_req_t *req;
 
   ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_simple_desc_req_t), req);
-  req->nwk_addr = 0; //send to coordinator
-  req->endpoint = 11;
+  req->nwk_addr = req_tail->nwk_addr;
+  req->endpoint = req_tail->endpoint;
   zb_zdo_simple_desc_req(ZB_REF_FROM_BUF(buf), simple_desc_callback);
 }
-
 
 void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = ZB_BUF_FROM_REF(param);
   zb_uint8_t *zdp_cmd = ZB_BUF_BEGIN(buf);
   zb_zdo_simple_desc_resp_t *resp = (zb_zdo_simple_desc_resp_t*)(zdp_cmd);
-  zb_uint_t i;
-  zb_zdo_active_ep_req_t *req;
+  zb_uint_t i; 
 
   TRACE_MSG(TRACE_APS1, "simple_desc_callback status %hd, addr 0x%x",
             (FMT__H_D, resp->hdr.status, resp->hdr.nwk_addr));
