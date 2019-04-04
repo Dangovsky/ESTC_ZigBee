@@ -67,7 +67,7 @@ PURPOSE: Test for ZC application written using ZDO.
 #error Define ZB_SECURITY
 #endif
 
-commands_t command_cntr = ON;
+commands_t command_cntr = ON_COMMAND;
 
 void test_send_data(zb_uint8_t param) ZB_CALLBACK;
 void test_get_buffer(zb_uint8_t param) ZB_CALLBACK;
@@ -125,7 +125,7 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   if (buf->u.hdr.status == 0)
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
-    command_cntr = ON;
+    command_cntr = ON_COMMAND;
     ZB_SCHEDULE_ALARM(test_get_buffer, param, ZB_TIME_ONE_SECOND);
   }
   else
@@ -142,13 +142,14 @@ void send_payloaded_command(zb_uint8_t param, zb_uint8_t payload_length, zb_uint
     zb_uint16_t tail = *((zb_uint16_t *)ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t)));
     zb_apsde_data_req_t *req = ZB_GET_BUF_TAIL(buf, sizeof(zb_apsde_data_req_t));
 
-    ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_uint8_t) * payload_length, ptr);
+    ZB_BUF_INITIAL_ALLOC(buf, ((sizeof *payload) * payload_length), ptr);
 
     req->dst_addr.addr_short = tail; 
     req->addr_mode = ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
     req->tx_options = ZB_APSDE_TX_OPT_ACK_TX;
     req->radius = 1;
-    req->profileid = 2;
+    req->profileid = 0x2232;
+    req->clusterid = 0x1234;
     req->src_endpoint = 10;
     req->dst_endpoint = 10;
 
@@ -170,41 +171,47 @@ void send_payloaded_command(zb_uint8_t param, zb_uint8_t payload_length, zb_uint
 
 void bulb_send_on_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_payloaded_command(param, 1, "\0");
+    zb_uint8_t command = ON_COMMAND;
+    send_payloaded_command(param, 1, &command);
 }
 
 void bulb_send_off_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_payloaded_command(param, 1, "\1");
+    zb_uint8_t command = OFF_COMMAND;
+    send_payloaded_command(param, 1, &command);
 }
 
 void bulb_send_toggle_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_payloaded_command(param, 1, "\2");
+    zb_uint8_t command = TOGGLE_COMMAND;
+    send_payloaded_command(param, 1, &command);
 }
 
 void bulb_send_brightness_up_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_payloaded_command(param, 1, "\3");
+    zb_uint8_t command = BRIGHTNESS_UP_COMMAND;
+    send_payloaded_command(param, 1, &command);
 }
 
 void bulb_send_brightness_down_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_payloaded_command(param, 1, "\4");
+    zb_uint8_t command = BRIGHTNESS_DOWN_COMMAND;
+    send_payloaded_command(param, 1, &command);
 }
 
 void bulb_send_brightness_command(zb_uint8_t param) ZB_CALLBACK
 {
-    zb_uint8_t* tail = ZB_GET_BUF_TAIL(ZB_BUF_FROM_REF(param), sizeof(bulb_tail_t));
+    bulb_tail_t* tail = ZB_GET_BUF_TAIL((zb_buf_t *)ZB_BUF_FROM_REF(param), sizeof(bulb_tail_t));
     zb_uint8_t payload [2];
-    payload[0] = '\5';
-    payload[1] = tail[2];
+    payload[0] = BRIGHTNESS_COMMAND;
+    payload[1] = tail->brightness;
     send_payloaded_command(param, 2, payload);
 }
 
 void bulb_send_color_command(zb_uint8_t param) ZB_CALLBACK
 {
-    send_payloaded_command(param, 1, "\6");
+    zb_uint8_t command = COLOR_COMMAND;
+    send_payloaded_command(param, 1, &command);
 }
 
 void test_get_buffer(zb_uint8_t param) ZB_CALLBACK
@@ -213,15 +220,17 @@ void test_get_buffer(zb_uint8_t param) ZB_CALLBACK
     {
         test_send_data(param);
     }
-    ZB_GET_OUT_BUF_DELAYED(test_send_data);
+    else
+    {
+        ZB_GET_OUT_BUF_DELAYED(test_send_data);
+    }
     ZB_SCHEDULE_ALARM(test_get_buffer, 0, ZB_TIME_ONE_SECOND);
 }
 
 void test_send_data(zb_uint8_t param) ZB_CALLBACK
 {          
     zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
-    command_cntr = BRIGHTNESS;
-    if (command_cntr != BRIGHTNESS)
+    if (command_cntr != BRIGHTNESS_COMMAND)
     {
         zb_uint16_t* tail = ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t));
         *tail = 0;
@@ -230,37 +239,37 @@ void test_send_data(zb_uint8_t param) ZB_CALLBACK
     {
         bulb_tail_t* tail = ZB_GET_BUF_TAIL(buf, sizeof(bulb_tail_t));
         tail->addr = 0;
-        tail->brightness = 0x11;
+        tail->brightness = 0xda;
     }
 
     switch(command_cntr)
     {
-        case ON:
+        case ON_COMMAND:
             ZB_SCHEDULE_CALLBACK(bulb_send_on_command, param);
             break;
-        case OFF:
+        case OFF_COMMAND:
             ZB_SCHEDULE_CALLBACK(bulb_send_off_command, param);
             break;
-        case TOGGLE:
+        case TOGGLE_COMMAND:
             ZB_SCHEDULE_CALLBACK(bulb_send_toggle_command, param);
             break;
-        case BRIGHTNESS_DOWN:
+        case BRIGHTNESS_DOWN_COMMAND:
             ZB_SCHEDULE_CALLBACK(bulb_send_brightness_down_command, param);
             break;
-        case BRIGHTNESS_UP:
+        case BRIGHTNESS_UP_COMMAND:
             ZB_SCHEDULE_CALLBACK(bulb_send_brightness_up_command, param);
             break;
-        case BRIGHTNESS:
+        case BRIGHTNESS_COMMAND:
             ZB_SCHEDULE_CALLBACK(bulb_send_brightness_command, param);
             break;
-        case COLOR:
+        case COLOR_COMMAND:
             ZB_SCHEDULE_CALLBACK(bulb_send_color_command, param);
             break;
     }
 
-    if (++command_cntr > COLOR)
+    if (++command_cntr > COLOR_COMMAND)
     {
-        command_cntr = BRIGHTNESS;
+        command_cntr = ON_COMMAND;
     }
 }
 

@@ -132,47 +132,47 @@ void data_indication(zb_uint8_t param) ZB_CALLBACK
 
   /* Remove APS header from the packet */
   ZB_APS_HDR_CUT_P(asdu, payload);
-/*
+
   if (ZB_BUF_LEN(asdu) < sizeof(zb_uint8_t))
   {
       TRACE_MSG(TRACE_APS2, "recieved too small packet", (FMT__0));
       zb_free_buf(asdu);
       return;
   }
-*/
-/*
-  if ((*payload == BRIGHTNESS) && (ZB_BUF_LEN(asdu) < sizeof(zb_uint8_t) * 2))
+
+
+  if ((*payload == BRIGHTNESS_COMMAND) && (ZB_BUF_LEN(asdu) < sizeof(zb_uint8_t) * 2))
   {
       TRACE_MSG(TRACE_APS2, "recieved brightness packet without payload", (FMT__0));
       zb_free_buf(asdu);
       return;
   }
-*/
+
   TRACE_MSG(TRACE_APS2, "apsde_data_indication: packet %p len %d handle 0x%x command: %x", (FMT__P_D_D_D,
                          asdu, (int)ZB_BUF_LEN(asdu), asdu->u.hdr.status, *payload));
 
   switch (*payload)
   {
-      case ON:
+      case ON_COMMAND:
           TRACE_MSG(TRACE_APS2, "recieved on command", (FMT__0));
           break;
-      case OFF:
+      case OFF_COMMAND:
           TRACE_MSG(TRACE_APS2, "recieved off command", (FMT__0));
           break;
-      case TOGGLE:
+      case TOGGLE_COMMAND:
           TRACE_MSG(TRACE_APS2, "recieved toggle command", (FMT__0));
           break;
-      case BRIGHTNESS_UP:
+      case BRIGHTNESS_UP_COMMAND:
           TRACE_MSG(TRACE_APS2, "recieved brightness_up command", (FMT__0));
           break;
-      case BRIGHTNESS_DOWN:
+      case BRIGHTNESS_DOWN_COMMAND:
           TRACE_MSG(TRACE_APS2, "recieved brightness_down command", (FMT__0));
           break;
-      case BRIGHTNESS:
-          /*TRACE_MSG(TRACE_APS2, "recieved brightness command. brightness: %x", (FMT__D, *payload));*/
-          TRACE_MSG(TRACE_APS2, "recieved brightness command", (FMT__0));
+      case BRIGHTNESS_COMMAND:
+          TRACE_MSG(TRACE_APS2, "recieved brightness command. brightness: %x", (FMT__D, *(payload+1)));
+/*          TRACE_MSG(TRACE_APS2, "recieved brightness command", (FMT__0));*/
           break;
-      case COLOR:
+      case COLOR_COMMAND:
           TRACE_MSG(TRACE_APS2, "recieved color command.", (FMT__0));
           break;
       default:
