@@ -160,6 +160,10 @@ void send_data(zb_uint8_t param) ZB_CALLBACK
         send_command(param);
         break;
   }
+  if (cnt++ > 2)
+  {
+    cnt = 0;
+  }
 }
 
 
@@ -278,22 +282,37 @@ void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK
   zb_zdo_active_ep_req_t *req;
 
   TRACE_MSG(TRACE_APS1, "simple_desc_callback status %hd, addr 0x%x",
-            (FMT__H, resp->hdr.status, resp->hdr.nwk_addr));
+            (FMT__H_D, resp->hdr.status, resp->hdr.nwk_addr));
   if (resp->hdr.status != ZB_ZDP_STATUS_SUCCESS || resp->hdr.nwk_addr != 0x0)
   {
     TRACE_MSG(TRACE_APS1, "Error incorrect status/addr", (FMT__0));
   }
 
-  TRACE_MSG(TRACE_APS1, "ep %hd, app prof %d, dev id %d, dev ver %hd, input count 0x%hx, output count 0x%hx",
-            (FMT__H_D_D_H_H_H, resp->simple_desc.endpoint, resp->simple_desc.app_profile_id,
+  TRACE_MSG(TRACE_APS1, "ep %d, app prof %d, dev id %d, dev ver %d, input count 0x%x",
+            (FMT__D_D_D_D_D, resp->simple_desc.endpoint, resp->simple_desc.app_profile_id,
             resp->simple_desc.app_device_id, resp->simple_desc.app_device_version,
-           resp->simple_desc.app_input_cluster_count, resp->simple_desc.app_output_cluster_count));
+           resp->simple_desc.app_input_cluster_count));
 
-  TRACE_MSG(TRACE_APS1, "clusters:", (FMT__0));
-  for(i = 0; i < resp->simple_desc.app_input_cluster_count + resp->simple_desc.app_output_cluster_count; i++)
+  zb_uint8_t *cnt_ptr = &(resp->simple_desc.app_input_cluster_count);
+  zb_uint16_t *ptr = (zb_uint16_t*)(cnt_ptr + 1); 
+  
+  TRACE_MSG(TRACE_APS1, "input clusters:", (FMT__0));
+  for(i = 0; i < *(cnt_ptr); i++)
   {
-    TRACE_MSG(TRACE_APS1, " 0x%hx", (FMT__H, *(resp->simple_desc.app_cluster_list + i)));
+    TRACE_MSG(TRACE_APS1, " 0x%x", (FMT__D, *ptr));
+    ++ptr;
   }
+  
+  cnt_ptr = (zb_uint8_t*)ptr;
+  ptr = (zb_uint16_t*)(cnt_ptr + 1);
+  
+  TRACE_MSG(TRACE_APS1, "otput cluster count %x. output clusters:", (FMT__D, *(cnt_ptr)));
+  for(i = 0; i < *(cnt_ptr); i++)
+  {
+    TRACE_MSG(TRACE_APS1, " 0x%x", (FMT__D, *ptr));
+    ++ptr;
+  }
+  
   zb_free_buf(buf);
 }
 
