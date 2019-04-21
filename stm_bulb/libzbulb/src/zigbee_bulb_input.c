@@ -29,11 +29,11 @@ void bulb_parce_package(zb_uint8_t param) ZB_CALLBACK
   {
       case ON_COMMAND:
           TRACE_MSG(TRACE_APS2, "recieved on command", (FMT__0));
-          is_on = true;
+          is_on = 1;
           break;
       case OFF_COMMAND:
           TRACE_MSG(TRACE_APS2, "recieved off command", (FMT__0));
-          is_on = false;
+          is_on = 0;
           break;
       case TOGGLE_COMMAND:
           TRACE_MSG(TRACE_APS2, "recieved toggle command", (FMT__0));
@@ -75,6 +75,6 @@ void bulb_update_state(void)
     }
     else
     {
-        SetColorRBG(0);
+        SetColorHex(0);
     }
 }

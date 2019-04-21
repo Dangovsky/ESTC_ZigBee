@@ -52,10 +52,13 @@ PURPOSE: Test for ZC application written using ZDO.
 #include "zb_nwk.h"
 #include "zb_aps.h"
 #include "zb_zdo.h"
-#include "zb_secur.h"
-#include "zb_secur_api.h"
 
 #include "./libzbulb/src/zigbee_bulb_input.c"
+
+#define ZB_TEST_DUMMY_DATA_SIZE 10
+
+zb_ieee_addr_t g_zc_addr = {0x00, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa};
+
 /*! \addtogroup ZB_TESTS */
 /*! @{ */
 
@@ -63,34 +66,40 @@ PURPOSE: Test for ZC application written using ZDO.
 #error Coordinator role is not compiled!
 #endif
 
-#ifndef ZB_SECURITY
-#error Define ZB_SECURITY
-#endif
-
-zb_ieee_addr_t g_ieee_addr = {0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x00, 0x08};
-zb_uint8_t g_key[16] = { 0xab, 0xcd, 0xef, 0x01, 0x23, 0x45, 0x67, 0x89, 0, 0, 0, 0, 0, 0, 0, 0};
+/*
+  The test is: ZC starts PAN, ZR joins to it by association and send APS data packet, when ZC
+  received packet, it sends packet to ZR, when ZR received packet, it sends
+  packet to ZC etc.
+ */
 
 MAIN()
 {
   ARGV_UNUSED;
 
-#ifndef KEIL
+#if !(defined KEIL || defined SDCC || defined ZB_IAR)
   if ( argc < 3 )
   {
-    printf("%s <read pipe path> <write pipe path>\n", argv[0]);
+    //printf("%s <read pipe path> <write pipe path>\n", argv[0]);
     return 0;
   }
 #endif
+
+
   /* Init device, load IB values from nvram or set it to default */
 #ifndef ZB8051
   ZB_INIT("zdo_zc", argv[1], argv[2]);
 #else
   ZB_INIT("zdo_zc", "1", "1");
 #endif
-  ZB_IEEE_ADDR_COPY(ZB_PIB_EXTENDED_ADDRESS(), &g_ieee_addr);
+#ifdef ZB_SECURITY
+  ZG->nwk.nib.security_level = 0;
+#endif
+  ZB_IEEE_ADDR_COPY(ZB_PIB_EXTENDED_ADDRESS(), &g_zc_addr);
+  MAC_PIB().mac_pan_id = 0x1aaa;
+
   /* let's always be coordinator */
   ZB_AIB().aps_designated_coordinator = 1;
-  zb_secur_setup_preconfigured_key(g_key, 0);
+  ZB_AIB().aps_channel_mask = (1l << 19);
 
   if (zdo_dev_start() != RET_OK)
   {
@@ -113,7 +122,7 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   if (buf->u.hdr.status == 0)
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
-    InitLed();
+    InitLeds();
     zb_af_set_data_indication(bulb_parce_package);
   }
   else

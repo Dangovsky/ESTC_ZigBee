@@ -1,4 +1,4 @@
-BUILD_ROOT=../..
+BUILD_ROOT=../../../ESTC-build-system/
 include $(BUILD_ROOT)/common_defs.mk
 
 LIB = libled.a

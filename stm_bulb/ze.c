@@ -53,8 +53,6 @@ PURPOSE: Test for ZC application written using ZDO.
 #include "zb_nwk.h"
 #include "zb_aps.h"
 #include "zb_zdo.h"
-#include "zb_secur.h"
-#include "zb_secur_api.h"
 
 #include "./libzbulb/src/zigbee_bulb_output.c"
 
@@ -63,20 +61,25 @@ PURPOSE: Test for ZC application written using ZDO.
 #endif
 /*! \addtogroup ZB_TESTS */
 /*! @{ */
-#ifndef ZB_SECURITY
-#error Define ZB_SECURITY
-#endif
 
-zb_ieee_addr_t g_ieee_addr = {0x01, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02, 0x02};
+
+zb_ieee_addr_t g_ze_addr = {0x02, 0xed, 0xed, 0xed, 0xed, 0xed, 0xed, 0xed};
+
+
+
+/*
+  ZE joins to ZC(ZR), then sends APS packet.
+*/
+
 
 MAIN()
 {
   ARGV_UNUSED;
 
-#ifndef KEIL
+#if !(defined KEIL || defined SDCC || defined ZB_IAR )
   if ( argc < 3 )
   {
-    printf("%s <read pipe path> <write pipe path>\n", argv[0]);
+    //printf("%s <read pipe path> <write pipe path>\n", argv[0]);
     return 0;
   }
 #endif
@@ -85,11 +88,15 @@ MAIN()
 #ifndef ZB8051
   ZB_INIT("zdo_ze", argv[1], argv[2]);
 #else
-  ZB_INIT("zdo_ze", "3", "3");
+  ZB_INIT((char*)"zdo_ze", (char*)"3", (char*)"3");
 #endif
-
-  ZB_IEEE_ADDR_COPY(ZB_PIB_EXTENDED_ADDRESS(), g_ieee_addr);
-
+#ifdef ZB_SECURITY
+  ZG->nwk.nib.security_level = 0;
+#endif
+  ZB_IEEE_ADDR_COPY(ZB_PIB_EXTENDED_ADDRESS(), &g_ze_addr);
+  ZB_PIB_RX_ON_WHEN_IDLE() = ZB_FALSE;
+  ZB_AIB().aps_channel_mask = (1l << 22);
+	
   if (zdo_dev_start() != RET_OK)
   {
     TRACE_MSG(TRACE_ERROR, "zdo_dev_start failed", (FMT__0));
@@ -100,6 +107,7 @@ MAIN()
   }
 
   TRACE_DEINIT();
+
   MAIN_RETURN(0);
 }
 
@@ -109,8 +117,10 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   zb_buf_t *buf = ZB_BUF_FROM_REF(param);
   if (buf->u.hdr.status == 0)
   {
-    init_perif();
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
+    init_perif();
+    
+    ZB_SCHEDULE_ALARM(send_data, param, 195);
   }
   else
   {
