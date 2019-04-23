@@ -53,9 +53,21 @@ PURPOSE: Test for ZC application written using ZDO.
 #include "zb_aps.h"
 #include "zb_zdo.h"
 
-#include "./libzbulb/src/zigbee_bulb_input.c"
+#include "./libzbulb/src/zigbee_bulb.c"
+#include "./libled/include/led.h"
 
-#define ZB_TEST_DUMMY_DATA_SIZE 10
+#define COLORS_CNT 10
+#define BRIGHTNESS_STEP 25
+
+/* current brightness */
+static uint8_t brightness = 255;
+/* bulb state flag */
+static uint8_t is_on = 0;
+/* index in colors array */
+static uint8_t current_color = 0;
+/* colors from https://simpledits.com/top-12-pantone-colors-for-spring-2018-with-hex-cmyk-and-rgb-values/ */
+static uint32_t colors[COLORS_CNT] = {0xecdb54, 0xe34132, 0x6ca0dc, 0x944743, 0xdbb2d1, 
+                                     0xec9787, 0x00a68c, 0x645394, 0x6c4f3d, 0xebe1df};
 
 zb_ieee_addr_t g_zc_addr = {0x00, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa};
 
@@ -65,12 +77,6 @@ zb_ieee_addr_t g_zc_addr = {0x00, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa};
 #ifndef ZB_COORDINATOR_ROLE
 #error Coordinator role is not compiled!
 #endif
-
-/*
-  The test is: ZC starts PAN, ZR joins to it by association and send APS data packet, when ZC
-  received packet, it sends packet to ZR, when ZR received packet, it sends
-  packet to ZC etc.
- */
 
 MAIN()
 {
@@ -83,7 +89,6 @@ MAIN()
     return 0;
   }
 #endif
-
 
   /* Init device, load IB values from nvram or set it to default */
 #ifndef ZB8051
@@ -115,6 +120,35 @@ MAIN()
   MAIN_RETURN(0);
 }
 
+void bulb_receive_toggle_command(zb_uint8_t param) ZB_CALLBACK
+{
+    is_on = !is_on;
+    if (is_on)
+    {
+        SetColorHEX(((zb_uint32_t)brightness << 24) | colors[current_color]);
+    }
+    else
+    {
+        SetColorHEX(0);
+    }
+}
+
+void bulb_receive_brightness_up_command(zb_uint8_t param) ZB_CALLBACK
+{
+    brightness += BRIGHTNESS_STEP;
+    SetColorHEX(((zb_uint32_t)brightness << 24) | colors[current_color]);
+}
+
+void bulb_receive_color_command(zb_uint8_t param) ZB_CALLBACK
+{
+    ++colors;
+    if (colors > COLORS_CNT)
+    {
+        colors = 0;
+    }
+    SetColorHEX(((zb_uint32_t)brightness << 24) | colors[current_color]);
+}
+
 void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -123,7 +157,7 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
     InitLeds();
-    zb_af_set_data_indication(bulb_parce_package);
+    zb_af_set_data_indication(bulb_parce_packet);
   }
   else
   {

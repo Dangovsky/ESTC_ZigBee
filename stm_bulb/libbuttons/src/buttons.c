@@ -1,101 +1,6 @@
-#include "../include/zigbee_bulb_output.h"
+#include "../include/buttons.h"
 
-void send_payloaded_command(zb_uint8_t param, zb_uint8_t payload_length, zb_uint8_t* payload)
-{
-    zb_buf_t *buf = (zb_buf_t*)ZB_BUF_FROM_REF(param);
-    zb_uint8_t* ptr;
-    zb_uint16_t address = *((zb_uint16_t *)ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t)));
-    zb_apsde_data_req_t *req = ZB_GET_BUF_TAIL(buf, sizeof(zb_apsde_data_req_t));
-
-    ZB_BUF_INITIAL_ALLOC(buf, ((sizeof *payload) * payload_length), ptr);
-
-    req->dst_addr.addr_short = address; 
-    req->addr_mode = ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
-    req->tx_options = ZB_APSDE_TX_OPT_ACK_TX;
-    req->radius = 1;
-    req->profileid = 0x2232;
-    req->clusterid = 0x1234;
-    req->src_endpoint = 10;
-    req->dst_endpoint = 10;
-
-    buf->u.hdr.handle = 0x11;
-
-    memcpy(ptr, payload, payload_length);
-    
-    if (payload_length > 1)
-    {
-        TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x, payload: %x", (FMT__D_D, *payload, *(payload+1)));
-    }
-    else
-    {
-        TRACE_MSG(TRACE_APS3, "Sending apsde_data.request, command: %x ", (FMT__D, *payload));
-    }
-
-    ZB_SCHEDULE_CALLBACK(zb_apsde_data_request, ZB_REF_FROM_BUF(buf));
-}
-
-void bulb_send_on_command(zb_uint8_t param) ZB_CALLBACK
-{
-    zb_uint8_t command = ON_COMMAND;
-    send_payloaded_command(param, 1, &command);
-}
-
-void bulb_send_off_command(zb_uint8_t param) ZB_CALLBACK
-{
-    zb_uint8_t command = OFF_COMMAND;
-    send_payloaded_command(param, 1, &command);
-}
-
-void bulb_send_toggle_command(zb_uint8_t param) ZB_CALLBACK
-{
-    zb_uint8_t command = TOGGLE_COMMAND;
-    send_payloaded_command(param, 1, &command);
-}
-
-void bulb_send_brightness_up_command(zb_uint8_t param) ZB_CALLBACK
-{
-    zb_uint8_t command = BRIGHTNESS_UP_COMMAND;
-    send_payloaded_command(param, 1, &command);
-}
-
-void bulb_send_brightness_down_command(zb_uint8_t param) ZB_CALLBACK
-{
-    zb_uint8_t command = BRIGHTNESS_DOWN_COMMAND;
-    send_payloaded_command(param, 1, &command);
-}
-
-void bulb_send_brightness_command(zb_uint8_t param) ZB_CALLBACK
-{
-    bulb_tail_t* tail = ZB_GET_BUF_TAIL((zb_buf_t *)ZB_BUF_FROM_REF(param), sizeof(bulb_tail_t));
-    zb_uint8_t payload [2];
-    payload[0] = BRIGHTNESS_COMMAND;
-    payload[1] = tail->brightness;
-    send_payloaded_command(param, 2, payload);
-}
-
-void bulb_send_color_command(zb_uint8_t param) ZB_CALLBACK
-{
-    zb_uint8_t command = COLOR_COMMAND;
-    send_payloaded_command(param, 1, &command);
-}
-
-void send(zb_callback_t send_command)
-{
-    zb_buf_t *buf = ZB_GET_OUT_BUF();
-    if (brightness)
-    {
-        bulb_tail_t* tail = ZB_GET_BUF_TAIL(buf, sizeof(bulb_tail_t));
-        tail->brightness = brightness;
-        tail->addr = addr;
-    }
-    else
-    {
-        zb_uint16_t* addr = ZB_GET_BUF_TAIL(buf, sizeof(zb_uint16_t));
-        *addr = addr;
-    }
-    ZB_SCHEDULE_CALLBACK(send_command, ZB_REF_FROM_BUF(buf));
-}
-
+#ifdef TIMER
 void TIM2_IRQHandler(void)
 {
    if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
@@ -104,21 +9,32 @@ void TIM2_IRQHandler(void)
       TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
    }
 }
+#endif
 
 void EXTI0_IRQHandler(void)
 {  
    if (EXTI_GetITStatus(EXTI_Line0) != RESET)
    {
+
+#ifdef TIMER
       if (timer_firstb - timer_secb < TIME_COMP)
       {
-          send(bulb_send_color_command);
+         zb_schedule_callback(button_both_click, 0);
       }
       else if (timer_count - timer_firstb > TIME_COMP)
       {
-          send(bulb_send_toggle_command);
+         zb_schedule_callback(button_first_click, 0);
       }
       timer_firstb = timer_count;
-      EXTI_ClearITPendingBit(EXTI_Line0);         
+#endif
+      
+#ifdef ZB_ALARMS
+      zb_schedule_alarm_cancel(buttons_action, ZB_ALARM_ANY_PARAM);
+      first_button = 1;
+      zb_schedule_alarm(buttons_action, 0, (zb_uint8_t)(TIME_COMP / ZB_MILLISECONDS_TO_BEACON_INTERVAL(1));
+#endif
+
+      EXTI_ClearITPendingBit(EXTI_Line0);
    }
 }
 
@@ -126,24 +42,59 @@ void EXTI1_IRQHandler(void)
 {   
    if (EXTI_GetITStatus(EXTI_Line1) != RESET)
    {
+
+#ifdef TIMER
       if (timer_firstb - timer_secb < TIME_COMP)
       {
-          send(bulb_send_color_command);
+         zb_schedule_callback(button_both_click, 0);
       }
       else if (timer_count - timer_firstb > TIME_COMP)
       {
-          send(bulb_send_brightness_up_command);
+         zb_schedule_callback(button_second_click, 0);
       }
       timer_secb = timer_count
+#endif
+
+#ifdef ZB_ALARMS
+      zb_schedule_alarm_cancel(buttons_action, ZB_ALARM_ANY_PARAM);
+      second_button = 1;
+      zb_schedule_alarm(buttons_action, 0, (zb_uint8_t)(TIME_COMP / ZB_MILLISECONDS_TO_BEACON_INTERVAL(1)));
+#endif
+
       EXTI_ClearITPendingBit(EXTI_Line1);      
    }
 }
 
-void init_perif()
+#ifdef ZB_ALARMS
+void buttons_action(zb_uint8_t param) ZB_CALLBACK
 {
+    if (first_button && second_button)
+    {
+        zb_schedule_callback(button_both_click, 0);
+    }
+    else if (first_button)
+    {
+        zb_schedule_callback(button_first_click, 0);
+    }
+    else if (second_button)
+    {
+        zb_schedule_callback(button_second_click, 0);
+    }
+}
+#endif
+
+void init_buttons(void)
+{
+#ifdef TIMER
   timer_count = 0;
   timer_firstb = 0;
   timer_secb = 0;
+#endif
+
+#ifdef ZB_ALARMS
+  first_button = 0;
+  second_button = 0;
+#endif
 
   GPIO_InitTypeDef GPIO_InitStructure = {0};
   EXTI_InitTypeDef EXTI_InitStruct = {0};  
@@ -164,6 +115,7 @@ void init_perif()
   GPIO_InitStructure.GPIO_Speed = GPIO_Speed_2MHz;
   GPIO_InitStructure.GPIO_PuPd  = GPIO_PuPd_UP;
   GPIO_Init(GPIOE, &GPIO_InitStructure);
+
   /* Using GPIOE0 as EXTI_Line0 */
   SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource0);
   /* Init EXTI_Line0 */
@@ -178,6 +130,7 @@ void init_perif()
   nvic_struct.NVIC_IRQChannelSubPriority = 0;
   nvic_struct.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&nvic_struct);
+
   /* Using GPIOE0 as EXTI_Line1 */
   SYSCFG_EXTILineConfig(EXTI_PortSourceGPIOE, EXTI_PinSource1);
   /* Init EXTI_Line1 */
@@ -192,6 +145,7 @@ void init_perif()
   nvic_struct.NVIC_IRQChannelSubPriority = 1;
   nvic_struct.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&nvic_struct);
+#ifdef TIMER
   /* Init timer 2 */
   tim_struct.TIM_Period        = TIM2_PERIOD - 1;
   tim_struct.TIM_Prescaler     = TIM2_PRESCALER - 1;
@@ -206,4 +160,9 @@ void init_perif()
   nvic_struct.NVIC_IRQChannelSubPriority = 1;
   nvic_struct.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&nvic_struct);
+#endif
 }
+
+void __attribute__((weak)) button_first_click(zb_uint8_t param) ZB_CALLBACK {}
+void __attribute__((weak)) button_second_click(zb_uint8_t param) ZB_CALLBACK {}
+void __attribute__((weak)) button_both_click(zb_uint8_t param) ZB_CALLBACK {}

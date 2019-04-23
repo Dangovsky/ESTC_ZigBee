@@ -4,6 +4,11 @@
 #include <stm32f4xx.h>
 #include <math.h>
 
+#define TIM1_PERIOD 16400
+#define TIM1_PRESCALER 1
+#define TIM1_PULSE 16400
+#define STEP 64
+
 /*! \file led.h
  *  \brief API for libled
  *  
@@ -25,31 +30,15 @@ void InitLeds(void);
  *  Fix green color brightnes.
  *  Logistic function for nonlinear brightness change.
  *  \param red, green, blue - brightness of components
- */
-void SetColorRGB(uint8_t red, uint8_t green, uint8_t blue);
-
-/*! \brief Set choosen LEDs color
- *
- *  Calculate and set comparators to TIM1's PWM.
- *  Fix green color brightnes.
- *  Logistic function for nonlinear brightness change.
- *  \param red, green, blue - brightness of components
- *  \parem alfa - overall brightness
+ *  \parem alfa - alfa chanel
  */
 void SetColorARGB(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue);
 
 /*! \brief Set choosen LEDs color
  *
- *  Split color on components and calls SetColorRGB.
- *  \param color - 24-bit HEX code.
+ *  Split color on components and calls SetColorARGB.
+ *  \param color - 32-bit HEX code, last 8 bit - alfa chanel.
  */
 void SetColorHex(uint32_t color);
-
-/*! \brief Set choosen LEDs color
- *
- *  Split color on components and calls SetColorARGB.
- *  \param color - 24-bit HEX code.
- */
-void SetColorAHex(uint8_t alfa, uint32_t color);
 
 #endif  /* LIBLED_H */

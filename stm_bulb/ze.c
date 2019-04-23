@@ -54,7 +54,9 @@ PURPOSE: Test for ZC application written using ZDO.
 #include "zb_aps.h"
 #include "zb_zdo.h"
 
-#include "./libzbulb/src/zigbee_bulb_output.c"
+#include "./libzbulb/src/zigbee_bulb.c"
+#define ZB_ALARMS
+#include "./libbuttons/src/buttons.c"
 
 #ifndef ZB_ED_ROLE
 #error define ZB_ED_ROLE to compile ze tests
@@ -62,15 +64,7 @@ PURPOSE: Test for ZC application written using ZDO.
 /*! \addtogroup ZB_TESTS */
 /*! @{ */
 
-
 zb_ieee_addr_t g_ze_addr = {0x02, 0xed, 0xed, 0xed, 0xed, 0xed, 0xed, 0xed};
-
-
-
-/*
-  ZE joins to ZC(ZR), then sends APS packet.
-*/
-
 
 MAIN()
 {
@@ -111,6 +105,20 @@ MAIN()
   MAIN_RETURN(0);
 }
 
+void button_first_click(zb_uint8_t param) ZB_CALLBACK
+{
+    send(bulb_send_toggle_command);
+}
+
+void button_second_click(zb_uint8_t param) ZB_CALLBACK
+{
+    send(bulb_send_brightness_up_command);
+}
+
+void button_both_click(zb_uint8_t param) ZB_CALLBACK
+{
+    send(bulb_send_color_command);
+}
 
 void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
 {
@@ -118,9 +126,7 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   if (buf->u.hdr.status == 0)
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
-    init_perif();
-    
-    ZB_SCHEDULE_ALARM(send_data, param, 195);
+    init_buttons();
   }
   else
   {

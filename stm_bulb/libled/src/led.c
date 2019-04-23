@@ -1,10 +1,5 @@
 #include "../include/led.h"
 
-#define TIM1_PERIOD 16400
-#define TIM1_PRESCALER 1
-#define TIM1_PULSE 16400
-#define STEP 64
-
 void InitLeds(){
   GPIO_InitTypeDef GPIO_InitStructure = {0};
   TIM_TimeBaseInitTypeDef tim_struct = {0};
@@ -48,25 +43,6 @@ void InitLeds(){
   TIM_CtrlPWMOutputs(TIM1, ENABLE);
 }
 
-void SetColorRGB(uint8_t red, uint8_t green, uint8_t blue)
-{
-   // logistic function for nonlinear transform (~sigmoid)
-   // 0.04 is magic const
-   // comparator = 256 * STEP / (1 + exp((-0.04)*(color - 128)));
-   uint32_t red_comparator = (uint32_t)(16400 / (1 + exp((double)(-0.04)*(red - 128))));
-   TIM_SetCompare1(TIM1, red_comparator);
-   // 0x92 = 147 === 0x00 of brightness
-   // 255 - 147 = 108 brigtness steps left
-   // green = 147 + (uint8_t)(0.4235 * green);
-   // uint32_t green_comparator = 9344 + (uint8_t)(27 * green);
-   // uint32_t green_comparator = (uint32_t)(16400 / (1 + exp((-0.04)*((147 + (uint8_t)(108.0 / 255.0 * green)) - 128))));
-   green = 147 + (uint8_t)(108.0 / 255.0 * green);
-   uint32_t green_comparator = (uint32_t)(16400 / (1 + exp((double)(-0.04)*(green - 201))));
-   TIM_SetCompare2(TIM1, green_comparator);
-   uint32_t blue_comparator = (uint32_t)(16400 / (1 + exp((double)(-0.04)*(blue - 128))));
-   TIM_SetCompare3(TIM1, blue_comparator);
-}
-
 void SetColorARGB(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue)
 {
    // logistic function for nonlinear transform (~sigmoid)
@@ -88,10 +64,5 @@ void SetColorARGB(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue)
 
 void SetColorHex(uint32_t color)
 {
-   SetColorRGB((color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
-}
-
-void SetColorAHex(uint8_t alfa, uint32_t color)
-{
-   SetColorARGB(alfa, (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
+   SetColorARGB((color >> 24) & 0xFF, (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
 }

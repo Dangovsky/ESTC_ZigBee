@@ -18,4 +18,22 @@ typedef struct bulb_tail_s
     zb_uint16_t addr;
 }ZB_PACKED_STRUCT bulb_tail_t;
 
+void bulb_parce_packet(zb_uint8_t param) ZB_CALLBACK;
+void __attribute__((weak)) bulb_receive_on_command(zb_uint8_t param) ZB_CALLBACK;
+void __attribute__((weak)) bulb_receive_off_command(zb_uint8_t param) ZB_CALLBACK;
+void __attribute__((weak)) bulb_receive_toggle_command(zb_uint8_t param) ZB_CALLBACK;
+void __attribute__((weak)) bulb_receive_brightness_up_command(zb_uint8_t param) ZB_CALLBACK;
+void __attribute__((weak)) bulb_receive_brightness_down_command(zb_uint8_t param) ZB_CALLBACK;
+void __attribute__((weak)) bulb_receive_brightness_command(zb_uint8_t param) ZB_CALLBACK;
+void __attribute__((weak)) bulb_receive_color_command(zb_uint8_t param) ZB_CALLBACK;
+
+void send(zb_callback_t send_command);
+void bulb_send_on_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_off_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_toggle_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_brightness_up_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_brightness_down_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_brightness_command(zb_uint8_t param) ZB_CALLBACK;
+void bulb_send_color_command(zb_uint8_t param) ZB_CALLBACK;
+
 #endif  /* ZIGBEE_BULB_H */
