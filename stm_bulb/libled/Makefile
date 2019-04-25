@@ -1,21 +1,9 @@
-BUILD_ROOT=../../../ESTC-build-system/
-include $(BUILD_ROOT)/common_defs.mk
+BUILD_HOME=../../../zboss-v1.0
+include $(BUILD_HOME)/Options
 
-LIB = libled.a
+SRCS = ./src/led.c
 
-all: $(LIB)
-	@echo "Done"
+all: libled.a
 
-SRC_DIR = ./src
-
-SRCS = $(wildcard  $(addsuffix /*.c, $(SRC_DIR)))
-OBJS = $(patsubst %.c, %.o, $(SRCS))
-DEPS = $(patsubst %.c, %.d, $(SRCS))
-
-$(LIB): $(OBJS)
-	@echo "Linking library $@"
-	$(MAKE_LIBRARY)
-
-clean:
-	@echo "Cleaning directory"
-	@rm -f $(OBJS) $(DEPS) $(LIB) 
+libled.a: $(OBJS)
+	$(MAKE_LIB)

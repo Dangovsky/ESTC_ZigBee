@@ -1,5 +1,20 @@
 #include "../include/buttons.h"
 
+#define TIME_COMP 100
+
+#ifdef TIMER
+volatile zb_uint8_t timer_count;
+volatile zb_uint8_t timer_firstb;
+volatile zb_uint8_t timer_secb;
+#endif
+
+#ifdef ZB_ALARMS
+volatile zb_uint8_t first_button;
+volatile zb_uint8_t second_button;
+#endif
+
+button_handlers_t _handlers = {0};
+
 #ifdef TIMER
 void TIM2_IRQHandler(void)
 {
@@ -70,20 +85,29 @@ void buttons_action(zb_uint8_t param) ZB_CALLBACK
 {
     if (first_button && second_button)
     {
-        zb_schedule_callback(button_both_click, 0);
+        if (_handlers.button_both_click != NULL)
+        {
+            zb_schedule_callback(_handlers.button_both_click, 0);
+        }
     }
     else if (first_button)
     {
-        zb_schedule_callback(button_first_click, 0);
+        if (_handlers.button_first_click != NULL)
+        {
+            zb_schedule_callback(_handlers.button_first_click, 0);
+        }
     }
     else if (second_button)
     {
-        zb_schedule_callback(button_second_click, 0);
+        if (_handlers.button_second_click != NULL)
+        {
+            zb_schedule_callback(_handlers.button_second_click, 0);
+        }
     }
 }
 #endif
 
-void init_buttons(void)
+void init_buttons(button_handlers_t* handlers)
 {
 #ifdef TIMER
   timer_count = 0;
@@ -96,10 +120,15 @@ void init_buttons(void)
   second_button = 0;
 #endif
 
+  _handlers = *handlers;
+
   GPIO_InitTypeDef GPIO_InitStructure = {0};
   EXTI_InitTypeDef EXTI_InitStruct = {0};  
   NVIC_InitTypeDef nvic_struct = {0};
+
+#ifdef TIMER
   TIM_TimeBaseInitTypeDef tim_struct = {0};
+#endif
 
   /* Enable peripheral clock for timer 2*/
   RCC_APB1PeriphClockCmd(RCC_APB1Periph_TIM2, ENABLE);
@@ -162,7 +191,3 @@ void init_buttons(void)
   NVIC_Init(&nvic_struct);
 #endif
 }
-
-void __attribute__((weak)) button_first_click(zb_uint8_t param) ZB_CALLBACK {}
-void __attribute__((weak)) button_second_click(zb_uint8_t param) ZB_CALLBACK {}
-void __attribute__((weak)) button_both_click(zb_uint8_t param) ZB_CALLBACK {}

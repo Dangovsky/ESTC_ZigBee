@@ -1,6 +1,11 @@
 #include "../include/led.h"
 
-void InitLeds(){
+#define TIM1_PERIOD 16400
+#define TIM1_PRESCALER 1
+#define TIM1_PULSE 16400
+#define STEP 64
+
+void init_led(){
   GPIO_InitTypeDef GPIO_InitStructure = {0};
   TIM_TimeBaseInitTypeDef tim_struct = {0};
   TIM_OCInitTypeDef TIM_OCInitStruct = {0};
@@ -43,7 +48,7 @@ void InitLeds(){
   TIM_CtrlPWMOutputs(TIM1, ENABLE);
 }
 
-void SetColorARGB(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue)
+void led_set_color_ARGB(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue)
 {
    // logistic function for nonlinear transform (~sigmoid)
    // 0.04 is magic const
@@ -62,7 +67,7 @@ void SetColorARGB(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue)
    TIM_SetCompare3(TIM1, blue_comparator);
 }
 
-void SetColorHex(uint32_t color)
+void led_set_color_Hex(uint32_t color)
 {
-   SetColorARGB((color >> 24) & 0xFF, (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
+   led_set_color_ARGB((color >> 24) & 0xFF, (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
 }

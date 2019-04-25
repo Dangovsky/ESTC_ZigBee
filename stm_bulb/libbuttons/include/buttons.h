@@ -1,23 +1,19 @@
 #ifndef BUTTONS_H
 #define BUTTONS_H
 
-#define TIME_COMP 100
+#include <stm32f4xx.h>
+#include <stm32f4xx_tim.h>
+#include "zb_common.h"
+#include "zb_scheduler.h"
+#include "zb_bufpool.h"
 
-#ifdef TIMER
-zb_uint8_t timer_count;
-zb_uint8_t timer_firstb;
-zb_uint8_t timer_secb;
-#endif
+typedef struct button_handlers_s
+{
+    zb_callback_t button_first_click;
+    zb_callback_t button_second_click;
+    zb_callback_t button_both_click;
+}ZB_PACKED_STRUCT button_handlers_t;
 
-#ifdef ZB_ALARMS
-zb_uint8_t first_button;
-zb_uint8_t second_button;
-#endif
-
-void init_buttons(void);
-
-void __attribute__((weak)) button_first_click(zb_uint8_t param) ZB_CALLBACK;
-void __attribute__((weak)) button_second_click(zb_uint8_t param) ZB_CALLBACK;
-void __attribute__((weak)) button_both_click(zb_uint8_t param) ZB_CALLBACK;
+void init_buttons(button_handlers_t* handlers);
 
 #endif /* BUTTONS_H */
