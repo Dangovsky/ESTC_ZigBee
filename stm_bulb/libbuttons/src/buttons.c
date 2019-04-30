@@ -2,85 +2,20 @@
 
 #define TIME_COMP 100
 
-#ifdef TIMER
+#ifdef BUTTONS_TIMER
 volatile zb_uint8_t timer_count;
 volatile zb_uint8_t timer_firstb;
 volatile zb_uint8_t timer_secb;
 #endif
 
-#ifdef ZB_ALARMS
+#ifdef BUTTONS_ZB_ALARMS
 volatile zb_uint8_t first_button;
 volatile zb_uint8_t second_button;
 #endif
 
 button_handlers_t button_handlers = {0};
 
-#ifdef TIMER
-void TIM2_IRQHandler(void)
-{
-   if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
-   {
-      timer_count++;
-      TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
-   }
-}
-#endif
-
-void EXTI0_IRQHandler(void)
-{  
-   if (EXTI_GetITStatus(EXTI_Line0) != RESET)
-   {
-
-#ifdef TIMER
-      if (timer_firstb - timer_secb < TIME_COMP)
-      {
-         zb_schedule_callback(button_both_click, 0);
-      }
-      else if (timer_count - timer_firstb > TIME_COMP)
-      {
-         zb_schedule_callback(button_first_click, 0);
-      }
-      timer_firstb = timer_count;
-#endif
-      
-#ifdef ZB_ALARMS
-      zb_schedule_alarm_cancel(buttons_action, ZB_ALARM_ANY_PARAM);
-      first_button = 1;
-      zb_schedule_alarm(buttons_action, 0, (zb_uint8_t)(TIME_COMP / ZB_MILLISECONDS_TO_BEACON_INTERVAL(1));
-#endif
-
-      EXTI_ClearITPendingBit(EXTI_Line0);
-   }
-}
-
-void EXTI1_IRQHandler(void)
-{   
-   if (EXTI_GetITStatus(EXTI_Line1) != RESET)
-   {
-
-#ifdef TIMER
-      if (timer_firstb - timer_secb < TIME_COMP)
-      {
-         zb_schedule_callback(button_both_click, 0);
-      }
-      else if (timer_count - timer_firstb > TIME_COMP)
-      {
-         zb_schedule_callback(button_second_click, 0);
-      }
-      timer_secb = timer_count
-#endif
-
-#ifdef ZB_ALARMS
-      zb_schedule_alarm_cancel(buttons_action, ZB_ALARM_ANY_PARAM);
-      second_button = 1;
-      zb_schedule_alarm(buttons_action, 0, (zb_uint8_t)(TIME_COMP / ZB_MILLISECONDS_TO_BEACON_INTERVAL(1)));
-#endif
-
-      EXTI_ClearITPendingBit(EXTI_Line1);      
-   }
-}
-
-#ifdef ZB_ALARMS
+#ifdef BUTTONS_ZB_ALARMS
 void buttons_action(zb_uint8_t param) ZB_CALLBACK
 {
     if (first_button && second_button)
@@ -107,15 +42,80 @@ void buttons_action(zb_uint8_t param) ZB_CALLBACK
 }
 #endif
 
+#ifdef BUTTONS_TIMER
+void TIM2_IRQHandler(void)
+{
+   if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET)
+   {
+      timer_count++;
+      TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
+   }
+}
+#endif
+
+void EXTI0_IRQHandler(void)
+{  
+   if (EXTI_GetITStatus(EXTI_Line0) != RESET)
+   {
+
+#ifdef BUTTONS_TIMER
+      if (timer_firstb - timer_secb < TIME_COMP)
+      {
+         zb_schedule_callback(button_both_click, 0);
+      }
+      else if (timer_count - timer_firstb > TIME_COMP)
+      {
+         zb_schedule_callback(button_first_click, 0);
+      }
+      timer_firstb = timer_count;
+#endif
+      
+#ifdef BUTTONS_ZB_ALARMS
+      zb_schedule_alarm_cancel(buttons_action, ZB_ALARM_ANY_PARAM);
+      first_button = 1;
+      zb_schedule_alarm(buttons_action, 0, (zb_uint8_t)(TIME_COMP / ZB_MILLISECONDS_TO_BEACON_INTERVAL(1)));
+#endif
+
+      EXTI_ClearITPendingBit(EXTI_Line0);
+   }
+}
+
+void EXTI1_IRQHandler(void)
+{   
+   if (EXTI_GetITStatus(EXTI_Line1) != RESET)
+   {
+
+#ifdef BUTTONS_TIMER
+      if (timer_firstb - timer_secb < TIME_COMP)
+      {
+         zb_schedule_callback(button_both_click, 0);
+      }
+      else if (timer_count - timer_firstb > TIME_COMP)
+      {
+         zb_schedule_callback(button_second_click, 0);
+      }
+      timer_secb = timer_count
+#endif
+
+#ifdef BUTTONS_ZB_ALARMS
+      zb_schedule_alarm_cancel(buttons_action, ZB_ALARM_ANY_PARAM);
+      second_button = 1;
+      zb_schedule_alarm(buttons_action, 0, (zb_uint8_t)(TIME_COMP / ZB_MILLISECONDS_TO_BEACON_INTERVAL(1)));
+#endif
+
+      EXTI_ClearITPendingBit(EXTI_Line1);      
+   }
+}
+
 void init_buttons(button_handlers_t* handlers)
 {
-#ifdef TIMER
+#ifdef BUTTONS_TIMER
   timer_count = 0;
   timer_firstb = 0;
   timer_secb = 0;
 #endif
 
-#ifdef ZB_ALARMS
+#ifdef BUTTONS_ZB_ALARMS
   first_button = 0;
   second_button = 0;
 #endif
@@ -126,7 +126,7 @@ void init_buttons(button_handlers_t* handlers)
   EXTI_InitTypeDef EXTI_InitStruct = {0};  
   NVIC_InitTypeDef nvic_struct = {0};
 
-#ifdef TIMER
+#ifdef BUTTONS_TIMER
   TIM_TimeBaseInitTypeDef tim_struct = {0};
 #endif
 
@@ -174,7 +174,7 @@ void init_buttons(button_handlers_t* handlers)
   nvic_struct.NVIC_IRQChannelSubPriority = 1;
   nvic_struct.NVIC_IRQChannelCmd = ENABLE;
   NVIC_Init(&nvic_struct);
-#ifdef TIMER
+#ifdef BUTTONS_TIMER
   /* Init timer 2 */
   tim_struct.TIM_Period        = TIM2_PERIOD - 1;
   tim_struct.TIM_Prescaler     = TIM2_PRESCALER - 1;

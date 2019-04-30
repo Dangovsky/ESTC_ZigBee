@@ -1,6 +1,8 @@
 BUILD_HOME=../../../zboss-v1.0
 include $(BUILD_HOME)/Options
 
+CFLAGS_USER += -DBUTTONS_ZB_ALARMS
+
 SRCS1 = ./src/buttons.c
 OBJS1 = ${SRCS1:.c=.o}
 
