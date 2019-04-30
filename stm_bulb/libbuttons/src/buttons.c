@@ -13,7 +13,7 @@ volatile zb_uint8_t first_button;
 volatile zb_uint8_t second_button;
 #endif
 
-button_handlers_t _handlers = {0};
+button_handlers_t button_handlers = {0};
 
 #ifdef TIMER
 void TIM2_IRQHandler(void)
@@ -85,23 +85,23 @@ void buttons_action(zb_uint8_t param) ZB_CALLBACK
 {
     if (first_button && second_button)
     {
-        if (_handlers.button_both_click != NULL)
+        if (button_handlers.button_both_click != NULL)
         {
-            zb_schedule_callback(_handlers.button_both_click, 0);
+            zb_schedule_callback(button_handlers.button_both_click, 0);
         }
     }
     else if (first_button)
     {
-        if (_handlers.button_first_click != NULL)
+        if (button_handlers.button_first_click != NULL)
         {
-            zb_schedule_callback(_handlers.button_first_click, 0);
+            zb_schedule_callback(button_handlers.button_first_click, 0);
         }
     }
     else if (second_button)
     {
-        if (_handlers.button_second_click != NULL)
+        if (button_handlers.button_second_click != NULL)
         {
-            zb_schedule_callback(_handlers.button_second_click, 0);
+            zb_schedule_callback(button_handlers.button_second_click, 0);
         }
     }
 }
@@ -120,7 +120,7 @@ void init_buttons(button_handlers_t* handlers)
   second_button = 0;
 #endif
 
-  _handlers = *handlers;
+  button_handlers = *handlers;
 
   GPIO_InitTypeDef GPIO_InitStructure = {0};
   EXTI_InitTypeDef EXTI_InitStruct = {0};  

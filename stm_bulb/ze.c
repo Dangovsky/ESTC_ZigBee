@@ -43,7 +43,7 @@ MAIN()
 #endif
   ZB_IEEE_ADDR_COPY(ZB_PIB_EXTENDED_ADDRESS(), &g_ze_addr);
   ZB_PIB_RX_ON_WHEN_IDLE() = ZB_FALSE;
-  ZB_AIB().aps_channel_mask = (1l << 22);
+  ZB_AIB().aps_channel_mask = (1l << 19);
 	
   if (zdo_dev_start() != RET_OK)
   {
@@ -61,7 +61,7 @@ MAIN()
 
 zb_uint8_t prepare_buf(void)
 {
-    zb_buf_t buf = zb_get_out_buf();
+    zb_buf_t *buf = zb_get_out_buf();
     bulb_tail_t* tail = ZB_GET_BUF_TAIL(buf, sizeof(bulb_tail_t));
     tail->brightness = 0;
     tail->addr = addr;
@@ -70,26 +70,35 @@ zb_uint8_t prepare_buf(void)
 
 void button_first_click(zb_uint8_t param) ZB_CALLBACK
 {
-    bulb_send_toggle_command(ZB_BUF_FROM_REF(prepare_buf()));
+    param = prepare_buf();
+    bulb_send_toggle_command(param);
 }
 
 void button_second_click(zb_uint8_t param) ZB_CALLBACK
 {
-    bulb_send_brightness_up_command(ZB_BUF_FROM_REF(prepare_buf()));
+    param = prepare_buf();
+    bulb_send_brightness_up_command(param);
 }
 
 void button_both_click(zb_uint8_t param) ZB_CALLBACK
 {
-    bulb_send_color_command(ZB_BUF_FROM_REF(prepare_buf()));
+    param = prepare_buf();
+    bulb_send_color_command(param);
 }
 
 void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = ZB_BUF_FROM_REF(param);
+
+  button_handlers_t* handlers = {0};
+  handlers->button_first_click = button_first_click;
+  handlers->button_second_click = button_second_click;
+  handlers->button_both_click = button_both_click;
+
   if (buf->u.hdr.status == 0)
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
-    init_buttons();
+    init_buttons(handlers);
   }
   else
   {

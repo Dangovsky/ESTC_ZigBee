@@ -3,6 +3,7 @@
 
 #include <stm32f4xx.h>
 #include <stm32f4xx_tim.h>
+#include <stm32f4xx_exti.h>
 #include "zb_common.h"
 #include "zb_scheduler.h"
 #include "zb_bufpool.h"

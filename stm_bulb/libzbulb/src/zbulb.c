@@ -1,10 +1,10 @@
 #include "../include/zbulb.h"
 
-bulb_handlers_t _handlers = {0};
+bulb_handlers_t bulb_handlers = {0};
 
-void init_zbalb(bulb_handlers_t* handlers)
+void init_zbulb(bulb_handlers_t* handlers)
 {
-    _handlers = *handlers;
+    bulb_handlers = *handlers;
 }
 
 void bulb_parce_packet(zb_uint8_t param) ZB_CALLBACK
@@ -36,51 +36,51 @@ void bulb_parce_packet(zb_uint8_t param) ZB_CALLBACK
   {
       case ON_COMMAND:
           TRACE_MSG(TRACE_APS2, "received on command", (FMT__0));
-          if (_handlers.bulb_receive_on_command != NULL)
+          if (bulb_handlers.bulb_receive_on_command != NULL)
           {
-            _handlers.bulb_receive_on_command(0);
+            bulb_handlers.bulb_receive_on_command(0);
           }
           break;
       case OFF_COMMAND:
           TRACE_MSG(TRACE_APS2, "received off command", (FMT__0));
-          if (_handlers.bulb_receive_off_command != NULL)
+          if (bulb_handlers.bulb_receive_off_command != NULL)
           {
-            _handlers.bulb_receive_off_command(0);
+            bulb_handlers.bulb_receive_off_command(0);
           }
           break;
       case TOGGLE_COMMAND:
           TRACE_MSG(TRACE_APS2, "received toggle command", (FMT__0));
-          if (_handlers.bulb_receive_toggle_command != NULL)
+          if (bulb_handlers.bulb_receive_toggle_command != NULL)
           {
-            _handlers.bulb_receive_toggle_command(0);
+            bulb_handlers.bulb_receive_toggle_command(0);
           }
           break;
       case BRIGHTNESS_UP_COMMAND:
           TRACE_MSG(TRACE_APS2, "received brightness_up command", (FMT__0));
-          if (_handlers.bulb_receive_brightness_up_command != NULL)
+          if (bulb_handlers.bulb_receive_brightness_up_command != NULL)
           {
-            _handlers.bulb_receive_brightness_up_command(0);
+            bulb_handlers.bulb_receive_brightness_up_command(0);
           }
           break;
       case BRIGHTNESS_DOWN_COMMAND:
           TRACE_MSG(TRACE_APS2, "received brightness_down command", (FMT__0));
-          if (_handlers.bulb_receive_brightness_down_command != NULL)
+          if (bulb_handlers.bulb_receive_brightness_down_command != NULL)
           {
-            _handlers.bulb_receive_brightness_down_command(0);
+            bulb_handlers.bulb_receive_brightness_down_command(0);
           }
           break;
       case BRIGHTNESS_COMMAND:
           TRACE_MSG(TRACE_APS2, "received brightness command. brightness: %x", (FMT__D, *(payload+1)));
-          if (_handlers.bulb_receive_brightness_command != NULL)
+          if (bulb_handlers.bulb_receive_brightness_command != NULL)
           {
-            _handlers.bulb_receive_brightness_command(payload[1]);
+            bulb_handlers.bulb_receive_brightness_command(payload[1]);
           }
           break;
       case COLOR_COMMAND:
           TRACE_MSG(TRACE_APS2, "received color command.", (FMT__0));
-          if (_handlers.bulb_receive_color_command != NULL)
+          if (bulb_handlers.bulb_receive_color_command != NULL)
           {
-            _handlers.bulb_receive_color_command(0);
+            bulb_handlers.bulb_receive_color_command(0);
           }
           break;
       default:
