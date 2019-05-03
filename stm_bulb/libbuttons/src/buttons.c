@@ -1,6 +1,6 @@
 #include "../include/buttons.h"
 
-#define TIME_COMP 100
+#define TIME_COMP 90
 
 #ifdef BUTTONS_TIMER
 volatile zb_uint8_t timer_count;
@@ -24,6 +24,7 @@ void buttons_action(zb_uint8_t param) ZB_CALLBACK
         {
             zb_schedule_callback(button_handlers.button_both_click, 0);
         }
+        first_button = second_button = 0;
     }
     else if (first_button)
     {
@@ -31,6 +32,7 @@ void buttons_action(zb_uint8_t param) ZB_CALLBACK
         {
             zb_schedule_callback(button_handlers.button_first_click, 0);
         }
+        first_button = 0;
     }
     else if (second_button)
     {
@@ -38,6 +40,7 @@ void buttons_action(zb_uint8_t param) ZB_CALLBACK
         {
             zb_schedule_callback(button_handlers.button_second_click, 0);
         }
+        second_button = 0;
     }
 }
 #endif
@@ -73,7 +76,7 @@ void EXTI0_IRQHandler(void)
 #ifdef BUTTONS_ZB_ALARMS
       zb_schedule_alarm_cancel(buttons_action, ZB_ALARM_ANY_PARAM);
       first_button = 1;
-      zb_schedule_alarm(buttons_action, 0, (zb_uint8_t)(TIME_COMP / ZB_MILLISECONDS_TO_BEACON_INTERVAL(1)));
+      zb_schedule_alarm(buttons_action, 0, ZB_MILLISECONDS_TO_BEACON_INTERVAL(TIME_COMP));
 #endif
 
       EXTI_ClearITPendingBit(EXTI_Line0);
@@ -100,7 +103,7 @@ void EXTI1_IRQHandler(void)
 #ifdef BUTTONS_ZB_ALARMS
       zb_schedule_alarm_cancel(buttons_action, ZB_ALARM_ANY_PARAM);
       second_button = 1;
-      zb_schedule_alarm(buttons_action, 0, (zb_uint8_t)(TIME_COMP / ZB_MILLISECONDS_TO_BEACON_INTERVAL(1)));
+      zb_schedule_alarm(buttons_action, 0, 15);
 #endif
 
       EXTI_ClearITPendingBit(EXTI_Line1);      
