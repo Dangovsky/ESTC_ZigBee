@@ -13,7 +13,7 @@ SRCS3 = $(FNAME3).c
 OBJS3 = ${SRCS3:.c=.o}
 
 $(BIN)zc$(EXE) : $(OBJS1)  $(LIBS) ./libled/libled.a ./libzbulb/libzbulb.a
-	$(LINK_BINARY) -lm
+	$(LINK_BINARY)
 	$(OBJCOPY) -O ihex $(FNAME1) $(FNAME1).hex
 	$(OBJCOPY) -I ihex -O binary $(FNAME1).hex $(FNAME1).bin
 
@@ -23,7 +23,7 @@ $(BIN)ze$(EXE) : $(OBJS2)  $(LIBS_ED) ./libbuttons/libbuttons.a	./libzbulb/libzb
 	$(OBJCOPY) -I ihex -O binary $(FNAME2).hex $(FNAME2).bin
 
 $(BIN)ztest$(EXE) : $(OBJS3)  $(LIBS) ./libbuttons/libbuttons.a	./libzbulb/libzbulb.a ./libled/libled.a
-	$(LINK_BINARY) -lm
+	$(LINK_BINARY)
 	$(OBJCOPY) -O ihex $(FNAME3) $(FNAME3).hex
 	$(OBJCOPY) -I ihex -O binary $(FNAME3).hex $(FNAME3).bin
 

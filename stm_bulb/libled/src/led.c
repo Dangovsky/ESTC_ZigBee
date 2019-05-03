@@ -5,6 +5,37 @@
 #define TIM1_PULSE 16400
 #define STEP 64
 
+uint8_t gamma_correction[] = {
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,
+    0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  0,  1,  1,
+    1,  1,  1,  1,  1,  1,  1,  1,  1,  2,  2,  2,  2,  2,  2,  2,
+    2,  3,  3,  3,  3,  3,  3,  3,  4,  4,  4,  4,  4,  5,  5,  5,
+    5,  6,  6,  6,  6,  7,  7,  7,  7,  8,  8,  8,  9,  9,  9, 10,
+   10, 10, 11, 11, 11, 12, 12, 13, 13, 13, 14, 14, 15, 15, 16, 16,
+   17, 17, 18, 18, 19, 19, 20, 20, 21, 21, 22, 22, 23, 24, 24, 25,
+   25, 26, 27, 27, 28, 29, 29, 30, 31, 32, 32, 33, 34, 35, 35, 36,
+   37, 38, 39, 39, 40, 41, 42, 43, 44, 45, 46, 47, 48, 49, 50, 50,
+   51, 52, 54, 55, 56, 57, 58, 59, 60, 61, 62, 63, 64, 66, 67, 68,
+   69, 70, 72, 73, 74, 75, 77, 78, 79, 81, 82, 83, 85, 86, 87, 89,
+   90, 92, 93, 95, 96, 98, 99,101,102,104,105,107,109,110,112,114,
+  115,117,119,120,122,124,126,127,129,131,133,135,137,138,140,142,
+  144,146,148,150,152,154,156,158,160,162,164,167,169,171,173,175,
+  177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213,
+  215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255 };
+
+void led_set_color_ARGB(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue)
+{
+   TIM_SetCompare1(TIM1, (uint8_t)(gamma_correction[red] / 255.0 * alfa) * STEP);
+   green = 147 + (uint8_t)(108.0 / 255.0 * (uint8_t)(gamma_correction[green] / 255.0 * alfa));
+   TIM_SetCompare2(TIM1, green * STEP);
+   TIM_SetCompare3(TIM1, (uint8_t)(gamma_correction[blue] / 255.0 * alfa) * STEP);
+}
+
+void led_set_color_Hex(uint32_t color)
+{
+   led_set_color_ARGB((color >> 24) & 0xFF, (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
+}
+
 void init_led(){
   GPIO_InitTypeDef GPIO_InitStructure = {0};
   TIM_TimeBaseInitTypeDef tim_struct = {0};
@@ -46,28 +77,6 @@ void init_led(){
   TIM_OC3PreloadConfig(TIM1, TIM_OCPreload_Enable);
 
   TIM_CtrlPWMOutputs(TIM1, ENABLE);
-}
 
-void led_set_color_ARGB(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue)
-{
-   // logistic function for nonlinear transform (~sigmoid)
-   // 0.04 is magic const
-   // comparator = 256 * STEP / (1 + exp((-0.04)*(color - 128)));
-   uint32_t red_comparator = (uint32_t)(alfa * 64 / (1 + exp((double)(-0.04)*(red - 128))));
-   TIM_SetCompare1(TIM1, red_comparator);
-   // 0x92 = 147 === 0x00 of brightness
-   // 255 - 147 = 108 brigtness steps left
-   // green = 147 + (uint8_t)(0.4235 * green);
-   // uint32_t green_comparator = 9344 + (uint8_t)(27 * green);
-   // uint32_t green_comparator = (uint32_t)(16400 / (1 + exp((-0.04)*((147 + (uint8_t)(108.0 / 255.0 * green)) - 128))));
-   green = 147 + (uint8_t)(108.0 / 255.0 * green);
-   uint32_t green_comparator = (uint32_t)(alfa * 64 / (1 + exp((double)(-0.04)*(green - 201))));
-   TIM_SetCompare2(TIM1, green_comparator);
-   uint32_t blue_comparator = (uint32_t)(alfa * 64 / (1 + exp((double)(-0.04)*(blue - 128))));
-   TIM_SetCompare3(TIM1, blue_comparator);
-}
-
-void led_set_color_Hex(uint32_t color)
-{
-   led_set_color_ARGB((color >> 24) & 0xFF, (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
+  led_set_color_Hex(0);
 }
