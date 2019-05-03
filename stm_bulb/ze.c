@@ -89,16 +89,15 @@ void button_both_click(zb_uint8_t param) ZB_CALLBACK
 void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = ZB_BUF_FROM_REF(param);
-
-  button_handlers_t* handlers = {0};
-  handlers->button_first_click = button_first_click;
-  handlers->button_second_click = button_second_click;
-  handlers->button_both_click = button_both_click;
+  button_handlers_t handlers = {0};
 
   if (buf->u.hdr.status == 0)
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
-    init_buttons(handlers);
+    handlers.button_first_click = button_first_click;
+    handlers.button_second_click = button_second_click;
+    handlers.button_both_click = button_both_click;
+    init_buttons(&handlers);
   }
   else
   {

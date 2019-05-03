@@ -6,7 +6,6 @@
 #include "zb_zdo.h"
 
 #include "./libzbulb/include/zbulb.h"
-#define ZB_ALARMS
 #include "./libbuttons/include/buttons.h"
 #include "./libled/include/led.h"
 
@@ -20,10 +19,10 @@ volatile uint8_t is_on = 0;
 /* index in colors array */
 volatile uint8_t current_color = 0;
 /* colors from https://simpledits.com/top-12-pantone-colors-for-spring-2018-with-hex-cmyk-and-rgb-values/ */
-static uint32_t colors[COLORS_CNT] = {0xecdb54, 0xe34132, 0x6ca0dc, 0x944743, 0xdbb2d1, 
-                                     0xec9787, 0x00a68c, 0x645394, 0x6c4f3d, 0xebe1df};
+static uint32_t colors[COLORS_CNT] = {0x00a68c, 0xe34132, 0x6ca0dc, 0x944743, 0xdbb2d1,
+                                      0xec9787, 0x645394, 0xecdb54, 0x6c4f3d, 0xebe1df};
 
-zb_uint16_t addr = 0;
+zb_uint16_t addr = 255;
 
 /*! \addtogroup ZB_TESTS */
 /*! @{ */
@@ -90,7 +89,7 @@ void button_first_click(zb_uint8_t param) ZB_CALLBACK
     param = prepare_buf();
     bulb_send_toggle_command(param);
 
-    is_on = !is_on;
+    is_on = 1 - is_on;
     if (is_on)
     {
         led_set_color_Hex(((zb_uint32_t)(brightness) << 24) | colors[current_color]);
@@ -116,7 +115,7 @@ void button_both_click(zb_uint8_t param) ZB_CALLBACK
     bulb_send_color_command(param);
 
     ++current_color;
-    if (current_color> COLORS_CNT)
+    if (current_color >= COLORS_CNT)
     {
         current_color = 0;
     }
@@ -126,16 +125,16 @@ void button_both_click(zb_uint8_t param) ZB_CALLBACK
 void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = ZB_BUF_FROM_REF(param);
-
-  button_handlers_t* handlers = {0};
-  handlers->button_first_click = button_first_click;
-  handlers->button_second_click = button_second_click;
-  handlers->button_both_click = button_both_click;
+  button_handlers_t* handlers;
 
   if (buf->u.hdr.status == 0)
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
+
     init_led();
+    handlers->button_first_click = button_first_click;
+    handlers->button_second_click = button_second_click;
+    handlers->button_both_click = button_both_click;
     init_buttons(handlers);
   }
   else

@@ -3,7 +3,7 @@ include $(BUILD_HOME)/Options
 
 FNAME1 = zc
 FNAME2 = ze
-FNAME3 = test
+FNAME3 = ztest
 
 SRCS1 = $(FNAME1).c
 OBJS1 = ${SRCS1:.c=.o}
@@ -22,14 +22,14 @@ $(BIN)ze$(EXE) : $(OBJS2)  $(LIBS_ED) ./libbuttons/libbuttons.a	./libzbulb/libzb
 	$(OBJCOPY) -O ihex $(FNAME2) $(FNAME2).hex
 	$(OBJCOPY) -I ihex -O binary $(FNAME2).hex $(FNAME2).bin
 
-$(BIN)tests$(EXE) : $(OBJS3)  $(LIBS) ./libbuttons/libbuttons.a	./libzbulb/libzbulb.a ./libled/libled.a
+$(BIN)ztest$(EXE) : $(OBJS3)  $(LIBS) ./libbuttons/libbuttons.a	./libzbulb/libzbulb.a ./libled/libled.a
 	$(LINK_BINARY) -lm
 	$(OBJCOPY) -O ihex $(FNAME3) $(FNAME3).hex
 	$(OBJCOPY) -I ihex -O binary $(FNAME3).hex $(FNAME3).bin
 
 BINS =  $(BIN)zc$(EXE)
 BINS += $(BIN)ze$(EXE)
-BINS += $(BIN)tests$(EXE)
+BINS += $(BIN)ztest$(EXE)
 
 all: $(BINS)
 

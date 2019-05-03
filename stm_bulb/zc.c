@@ -104,17 +104,17 @@ void bulb_receive_color_command(zb_uint8_t param) ZB_CALLBACK
 void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = ZB_BUF_FROM_REF(param);
-  bulb_handlers_t* handlers = {0};
+  bulb_handlers_t handlers = {0};
   TRACE_MSG(TRACE_APS3, ">>zb_zdo_startup_complete status %d", (FMT__D, (int)buf->u.hdr.status));
   if (buf->u.hdr.status == 0)
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
 
     init_led();
-    handlers->bulb_receive_toggle_command = bulb_receive_toggle_command;
-    handlers->bulb_receive_brightness_up_command = bulb_receive_brightness_up_command;
-    handlers->bulb_receive_color_command = bulb_receive_color_command;
-    init_zbulb(handlers);
+    handlers.bulb_receive_toggle_command = bulb_receive_toggle_command;
+    handlers.bulb_receive_brightness_up_command = bulb_receive_brightness_up_command;
+    handlers.bulb_receive_color_command = bulb_receive_color_command;
+    init_zbulb(&handlers);
     zb_af_set_data_indication(bulb_parce_packet);
   }
   else
