@@ -13,3 +13,20 @@ Commands:
 
 ## [zdo_descriptors](zdo_descriptors)
 ZR use ZDO's discovery function to find active EP on ZC, his input cluster and send him a packet.
+
+## [stm_bulb](stm_bulb)
+[Bulb](stm_bulb/zc.c) and [remote control](stm_bulb/ze.c) implementation on two stm32 dicsovery with zboss.
+
+There are three library:
+
+### [libled](stm_bulb/libled)
+Is libled from [first part](https://github.com/Dangovsky/ESTC) of the course with gamma correction.
+
+### [libbuttons](stm_bulb/libbuttons)
+Initialize buttons and interrupts, uses callbacks passed to `init_buttons` as action handlers.
+Can work on timers or on zboss alarms, based on defines `BUTTONS_TIMER` and `BUTTONS_ZB_ALARMS`.
+
+### [libzbulb](stm_bulb/libzbulb)
+Provides protocol for bulb-remote control interaction over zigbee.
+ * Bulb use `parse_packet` as data indicaction and past callbacks for nended commands to `init_zbulb`
+ * Remote control send command wia provided `bulb_send_*_command` functions.
