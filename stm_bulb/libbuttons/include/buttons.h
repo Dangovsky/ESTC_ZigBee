@@ -13,7 +13,7 @@ typedef struct button_handlers_s
     zb_callback_t button_first_click;
     zb_callback_t button_second_click;
     zb_callback_t button_both_click;
-}ZB_PACKED_STRUCT button_handlers_t;
+}button_handlers_t;
 
 void init_buttons(button_handlers_t* handlers);
 

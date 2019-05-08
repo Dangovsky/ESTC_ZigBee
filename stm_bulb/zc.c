@@ -23,8 +23,6 @@ static uint32_t colors[COLORS_CNT] = {0xecdb54, 0xe34132, 0x6ca0dc, 0x944743, 0x
 
 zb_ieee_addr_t g_zc_addr = {0x00, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa, 0xaa};
 
-/*! \addtogroup ZB_TESTS */
-/*! @{ */
 
 #ifndef ZB_COORDINATOR_ROLE
 #error Coordinator role is not compiled!
@@ -77,34 +75,35 @@ void bulb_receive_toggle_command(zb_uint8_t param) ZB_CALLBACK
     is_on = !is_on;
     if (is_on)
     {
-        led_set_color_Hex(((zb_uint32_t)brightness << 24) | colors[current_color]);
+        led_set_color_hex(((zb_uint32_t)brightness << 24) | colors[current_color]);
     }
     else
     {
-        led_set_color_Hex(0);
+        led_set_color_hex(0);
     }
 }
 
 void bulb_receive_brightness_up_command(zb_uint8_t param) ZB_CALLBACK
 {
     brightness += BRIGHTNESS_STEP;
-    led_set_color_Hex(((zb_uint32_t)brightness << 24) | colors[current_color]);
+    led_set_color_hex(((zb_uint32_t)brightness << 24) | colors[current_color]);
 }
 
-void bulb_receive_color_command(zb_uint8_t param) ZB_CALLBACK
+void bulb_receive_toggle_color_command(zb_uint8_t param) ZB_CALLBACK
 {
     ++current_color;
     if (current_color> COLORS_CNT)
     {
         current_color = 0;
     }
-    led_set_color_Hex(((zb_uint32_t)brightness << 24) | colors[current_color]);
+    led_set_color_hex(((zb_uint32_t)brightness << 24) | colors[current_color]);
 }
 
 void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *buf = ZB_BUF_FROM_REF(param);
   bulb_handlers_t handlers = {0};
+
   TRACE_MSG(TRACE_APS3, ">>zb_zdo_startup_complete status %d", (FMT__D, (int)buf->u.hdr.status));
   if (buf->u.hdr.status == 0)
   {
@@ -113,9 +112,9 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
     init_led();
     handlers.bulb_receive_toggle_command = bulb_receive_toggle_command;
     handlers.bulb_receive_brightness_up_command = bulb_receive_brightness_up_command;
-    handlers.bulb_receive_color_command = bulb_receive_color_command;
+    handlers.bulb_receive_toggle_color_command = bulb_receive_toggle_color_command;
     init_zbulb(&handlers);
-    zb_af_set_data_indication(bulb_parce_packet);
+    zb_af_set_data_indication(bulb_parse_packet);
   }
   else
   {
@@ -123,5 +122,3 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   }
   zb_free_buf(buf);
 }
-
-/*! @} */

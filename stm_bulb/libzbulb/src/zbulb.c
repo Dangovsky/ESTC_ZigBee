@@ -7,10 +7,10 @@ void init_zbulb(bulb_handlers_t* handlers)
     bulb_handlers = *handlers;
 }
 
-void bulb_parce_packet(zb_uint8_t param) ZB_CALLBACK
+void bulb_parse_packet(zb_uint8_t param) ZB_CALLBACK
 {
   zb_buf_t *asdu = (zb_buf_t *)ZB_BUF_FROM_REF(param);
-  zb_uint8_t* payload;
+  bulb_payload_t* payload;
 
   /* Remove APS header from the packet */
   ZB_APS_HDR_CUT_P(asdu, payload);
@@ -22,17 +22,17 @@ void bulb_parce_packet(zb_uint8_t param) ZB_CALLBACK
       return;
   }
 
-  if ((*payload == BRIGHTNESS_COMMAND) && (ZB_BUF_LEN(asdu) < sizeof(zb_uint8_t) * 2))
+  if ((payload->command == BRIGHTNESS_COMMAND) && (ZB_BUF_LEN(asdu) < sizeof(bulb_payload_t)))
   {
-      TRACE_MSG(TRACE_APS2, "received brightness packet without payload", (FMT__0));
+      TRACE_MSG(TRACE_APS2, "received brightness command without brightness payloaded", (FMT__0));
       zb_free_buf(asdu);
       return;
   }
 
   TRACE_MSG(TRACE_APS2, "apsde_data_indication: packet %p len %d handle 0x%x command: %x", (FMT__P_D_D_D,
-                         asdu, (int)ZB_BUF_LEN(asdu), asdu->u.hdr.status, *payload));
+                         asdu, (int)ZB_BUF_LEN(asdu), asdu->u.hdr.status, payload->command));
 
-  switch (*payload)
+  switch (payload->command)
   {
       case ON_COMMAND:
           TRACE_MSG(TRACE_APS2, "received on command", (FMT__0));
@@ -70,17 +70,17 @@ void bulb_parce_packet(zb_uint8_t param) ZB_CALLBACK
           }
           break;
       case BRIGHTNESS_COMMAND:
-          TRACE_MSG(TRACE_APS2, "received brightness command. brightness: %x", (FMT__D, *(payload+1)));
+          TRACE_MSG(TRACE_APS2, "received brightness command. brightness: %x", (FMT__D, payload->brightness));
           if (bulb_handlers.bulb_receive_brightness_command != NULL)
           {
-            bulb_handlers.bulb_receive_brightness_command(payload[1]);
+            bulb_handlers.bulb_receive_brightness_command(payload->brightness);
           }
           break;
-      case COLOR_COMMAND:
+      case TOGGLE_COLOR_COMMAND:
           TRACE_MSG(TRACE_APS2, "received color command.", (FMT__0));
-          if (bulb_handlers.bulb_receive_color_command != NULL)
+          if (bulb_handlers.bulb_receive_toggle_color_command != NULL)
           {
-            bulb_handlers.bulb_receive_color_command(0);
+            bulb_handlers.bulb_receive_toggle_color_command(0);
           }
           break;
       default:
@@ -163,8 +163,8 @@ void bulb_send_brightness_command(zb_uint8_t param) ZB_CALLBACK
     send_payloaded_command(param, 2, payload);
 }
 
-void bulb_send_color_command(zb_uint8_t param) ZB_CALLBACK
+void bulb_send_toggle_color_command(zb_uint8_t param) ZB_CALLBACK
 {
-    zb_uint8_t command = COLOR_COMMAND;
+    zb_uint8_t command = TOGGLE_COLOR_COMMAND;
     send_payloaded_command(param, 1, &command);
 }

@@ -23,17 +23,19 @@ uint8_t gamma_correction[] = {
   177,180,182,184,186,189,191,193,196,198,200,203,205,208,210,213,
   215,218,220,223,225,228,231,233,236,239,241,244,247,249,252,255 };
 
-void led_set_color_ARGB(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue)
+void led_set_color_argb(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue)
 {
    TIM_SetCompare1(TIM1, (uint8_t)(gamma_correction[red] / 255.0 * alfa) * STEP);
+   /* green led have brightness issue:
+    * (148 * STEP) is a first step when it is active */
    green = 147 + (uint8_t)(108.0 / 255.0 * (uint8_t)(gamma_correction[green] / 255.0 * alfa));
    TIM_SetCompare2(TIM1, green * STEP);
    TIM_SetCompare3(TIM1, (uint8_t)(gamma_correction[blue] / 255.0 * alfa) * STEP);
 }
 
-void led_set_color_Hex(uint32_t color)
+void led_set_color_hex(uint32_t color)
 {
-   led_set_color_ARGB((color >> 24) & 0xFF, (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
+   led_set_color_argb((color >> 24) & 0xFF, (color >> 16) & 0xFF, (color >> 8) & 0xFF, color & 0xFF);
 }
 
 void init_led(){
@@ -78,5 +80,5 @@ void init_led(){
 
   TIM_CtrlPWMOutputs(TIM1, ENABLE);
 
-  led_set_color_Hex(0);
+  led_set_color_hex(0);
 }

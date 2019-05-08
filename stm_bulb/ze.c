@@ -6,7 +6,6 @@
 #include "zb_zdo.h"
 
 #include "./libzbulb/include/zbulb.h"
-#define ZB_ALARMS
 #include "./libbuttons/include/buttons.h"
 
 zb_uint16_t addr = 0;
@@ -15,8 +14,6 @@ zb_uint8_t brightness = 255;
 #ifndef ZB_ED_ROLE
 #error define ZB_ED_ROLE to compile ze tests
 #endif
-/*! \addtogroup ZB_TESTS */
-/*! @{ */
 
 zb_ieee_addr_t g_ze_addr = {0x02, 0xed, 0xed, 0xed, 0xed, 0xed, 0xed, 0xed};
 
@@ -68,13 +65,13 @@ zb_uint8_t prepare_buf(void)
     return ZB_REF_FROM_BUF(buf);
 }
 
-void button_first_click(zb_uint8_t param) ZB_CALLBACK
+void button_left_click(zb_uint8_t param) ZB_CALLBACK
 {
     param = prepare_buf();
     bulb_send_toggle_command(param);
 }
 
-void button_second_click(zb_uint8_t param) ZB_CALLBACK
+void button_right_click(zb_uint8_t param) ZB_CALLBACK
 {
     param = prepare_buf();
     bulb_send_brightness_up_command(param);
@@ -83,7 +80,7 @@ void button_second_click(zb_uint8_t param) ZB_CALLBACK
 void button_both_click(zb_uint8_t param) ZB_CALLBACK
 {
     param = prepare_buf();
-    bulb_send_color_command(param);
+    bulb_send_toggle_color_command(param);
 }
 
 void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
@@ -94,8 +91,8 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   if (buf->u.hdr.status == 0)
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
-    handlers.button_first_click = button_first_click;
-    handlers.button_second_click = button_second_click;
+    handlers.button_left_click = button_left_click;
+    handlers.button_right_click = button_right_click;
     handlers.button_both_click = button_both_click;
     init_buttons(&handlers);
   }
@@ -105,5 +102,3 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
     zb_free_buf(buf);
   }
 }
-
-/*! @} */
