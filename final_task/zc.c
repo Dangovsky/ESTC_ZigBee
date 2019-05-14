@@ -7,13 +7,16 @@
 
 #include "stm32f4xx.h"
 
-// Объявляем переменные
-GPIO_InitTypeDef gpio;
-USART_InitTypeDef usart;
+
+#if !defined  (HSE_VALUE)
+  #define HSE_VALUE    ((uint32_t)8000000) /*!< Value of the External oscillator in Hz */
+#endif /* HSE_VALUE */
+
 // Пусть нам надо передать 8 байт, создадим массив для данных
-//uint8_t sendData[] = "Hello, world!";
-uint8_t sendData[] = {64,64,64,64,64,64,64,64,64,0,'\0'};
-uint8_t bytesToSend = 10;
+uint8_t sendData[] = "Hello, world!";
+uint8_t recievedData = 0xff;
+//uint8_t sendData[] = {0xff,0xaa,0x00,0xaa,0xff,0xaa,0x6c,0x92,0x00,0x00,'\0'};
+uint8_t bytesToSend = sizeof sendData;
 // Счетчик отправленных байт
 volatile uint8_t sendDataCounter = 0;
 
@@ -67,15 +70,19 @@ MAIN()
 // Инициализация 
 void init_usart()
 {
+    // Объявляем переменные
+    GPIO_InitTypeDef gpio = {0};
+    USART_InitTypeDef usart = {0};
+
     // Включаем прерывания
     __enable_irq();
 
     // Запускаем тактирование
     RCC_APB1PeriphClockCmd(RCC_APB1Periph_USART3, ENABLE);
-    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOB, ENABLE);
+    RCC_AHB1PeriphClockCmd(RCC_AHB1Periph_GPIOC, ENABLE);
 
     // Инициализация нужных пинов контроллера, для USART3 –
-    // PB10 и PB11
+    // PC10 и PC11
     GPIO_StructInit(&gpio);
 
     gpio.GPIO_Mode = GPIO_Mode_AF;
@@ -83,18 +90,19 @@ void init_usart()
     gpio.GPIO_Speed = GPIO_Speed_50MHz;
     gpio.GPIO_OType = GPIO_OType_PP;
     gpio.GPIO_PuPd = GPIO_PuPd_UP;
-    GPIO_Init(GPIOB, &gpio);
+    GPIO_Init(GPIOC, &gpio);
 
-    GPIO_PinAFConfig(GPIOB, GPIO_PinSource10, GPIO_AF_USART3);
-    GPIO_PinAFConfig(GPIOB, GPIO_PinSource11, GPIO_AF_USART3);
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource10, GPIO_AF_USART3);
+    GPIO_PinAFConfig(GPIOC, GPIO_PinSource11, GPIO_AF_USART3);
 
-   // А теперь настраиваем модуль USART
+    // А теперь настраиваем модуль USART
     USART_StructInit(&usart);
     usart.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
     usart.USART_BaudRate = 9600;
     usart.USART_Parity = USART_Parity_No;
     usart.USART_StopBits = USART_StopBits_1;
     usart.USART_WordLength = USART_WordLength_8b;
+    usart.USART_HardwareFlowControl = USART_HardwareFlowControl_None;
 
     USART_Init(USART3, &usart);
 
@@ -104,11 +112,18 @@ void init_usart()
 
     // Включаем прерывание по окончанию передачи
     USART_ITConfig(USART3, USART_IT_TC, ENABLE);
+    USART_ITConfig(USART3, USART_IT_RXNE, ENABLE);
 }
 
 // Обработчик прерывания
 void USART3_IRQHandler()
 {
+    if (USART_GetITStatus(USART3, USART_IT_RXNE) != RESET)
+    {
+        recievedData = USART_ReceiveData(USART3);
+        USART_SendData(USART3, recievedData);
+        USART_ClearITPendingBit(USART3, USART_IT_RXNE);
+    }
     // Проверяем, действительно ли прерывание вызвано окончанием передачи
     if (USART_GetITStatus(USART3, USART_IT_TC) != RESET)
     {
@@ -119,17 +134,8 @@ void USART3_IRQHandler()
 
             // Увеличиваем счетчик отправленных байт
             sendDataCounter++;
-
-            /*
-            // Если отправили все данные, начинаем все сначала
-            if  (sendDataCounter == bytesToSend)
-            {
-                sendDataCounter = 0;
-            }
-            */
-
-        // Очищаем флаг прерывания
         }
+        // Очищаем флаг прерывания
         USART_ClearITPendingBit(USART3, USART_IT_TC);
     }
 }
@@ -142,6 +148,7 @@ void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK
   {
     TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
     sendDataCounter = 0;
+    recievedData = 0xff;
     init_usart();
   }
   else

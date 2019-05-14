@@ -15,5 +15,10 @@ BINS =  $(BIN)zc$(EXE)
 
 all: $(BINS)
 
+libs:
+	cd microrl && $(MAKE) rebuild
+
+lclean:
+	cd microrl && $(MAKE) clean
 tags:
 	($(FIND) . -name \*.[ch] -print) | grep -v ".*~" | ctags -L -
