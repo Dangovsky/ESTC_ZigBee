@@ -1,6 +1,6 @@
 #include "../include/buttons.h"
 
-#define TIME_COMP 90
+#define TIME_COMP 150
 
 #ifdef BUTTONS_TIMER
 volatile zb_uint8_t timer_count;
@@ -13,6 +13,9 @@ volatile zb_uint8_t first_button;
 volatile zb_uint8_t second_button;
 #endif
 
+#if defined(BUTTONS_TIMER) && defined(BUTTONS_ZB_ALARMS)
+#error defined both timer and zb alarms
+#endif
 button_handlers_t button_handlers = {0};
 
 #ifdef BUTTONS_ZB_ALARMS
@@ -24,24 +27,22 @@ void buttons_action(zb_uint8_t param) ZB_CALLBACK
         {
             zb_schedule_callback(button_handlers.button_both_click, 0);
         }
-        first_button = second_button = 0;
     }
     else if (first_button)
     {
-        if (button_handlers.button_first_click != NULL)
+        if (button_handlers.button_left_click != NULL)
         {
-            zb_schedule_callback(button_handlers.button_first_click, 0);
+            zb_schedule_callback(button_handlers.button_left_click, 0);
         }
-        first_button = 0;
     }
     else if (second_button)
     {
-        if (button_handlers.button_second_click != NULL)
+        if (button_handlers.button_right_click != NULL)
         {
-            zb_schedule_callback(button_handlers.button_second_click, 0);
+            zb_schedule_callback(button_handlers.button_right_click, 0);
         }
-        second_button = 0;
     }
+    first_button = second_button = 0;
 }
 #endif
 
@@ -64,11 +65,11 @@ void EXTI0_IRQHandler(void)
 #ifdef BUTTONS_TIMER
       if (timer_firstb - timer_secb < TIME_COMP)
       {
-         zb_schedule_callback(button_both_click, 0);
+         zb_schedule_callback(button_handlers.button_both_click, 0);
       }
       else if (timer_count - timer_firstb > TIME_COMP)
       {
-         zb_schedule_callback(button_first_click, 0);
+         zb_schedule_callback(button_handlers.button_left_click, 0);
       }
       timer_firstb = timer_count;
 #endif
@@ -91,11 +92,11 @@ void EXTI1_IRQHandler(void)
 #ifdef BUTTONS_TIMER
       if (timer_firstb - timer_secb < TIME_COMP)
       {
-         zb_schedule_callback(button_both_click, 0);
+         zb_schedule_callback(button_handlers.button_both_click, 0);
       }
       else if (timer_count - timer_firstb > TIME_COMP)
       {
-         zb_schedule_callback(button_second_click, 0);
+         zb_schedule_callback(button_handlers.button_right_click, 0);
       }
       timer_secb = timer_count
 #endif
@@ -103,7 +104,7 @@ void EXTI1_IRQHandler(void)
 #ifdef BUTTONS_ZB_ALARMS
       zb_schedule_alarm_cancel(buttons_action, ZB_ALARM_ANY_PARAM);
       second_button = 1;
-      zb_schedule_alarm(buttons_action, 0, 15);
+      zb_schedule_alarm(buttons_action, 0, ZB_MILLISECONDS_TO_BEACON_INTERVAL(TIME_COMP));
 #endif
 
       EXTI_ClearITPendingBit(EXTI_Line1);      
@@ -154,7 +155,7 @@ void init_buttons(button_handlers_t* handlers)
   EXTI_InitStruct.EXTI_Line = EXTI_Line0;
   EXTI_InitStruct.EXTI_LineCmd = ENABLE;
   EXTI_InitStruct.EXTI_Mode = EXTI_Mode_Interrupt;
-  EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Falling;
+  EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
   EXTI_Init(&EXTI_InitStruct);
   /* Configurate interrupts for button 0 */
   nvic_struct.NVIC_IRQChannel = EXTI0_IRQn;
@@ -169,7 +170,7 @@ void init_buttons(button_handlers_t* handlers)
   EXTI_InitStruct.EXTI_Line = EXTI_Line1;
   EXTI_InitStruct.EXTI_LineCmd = ENABLE;
   EXTI_InitStruct.EXTI_Mode = EXTI_Mode_Interrupt;
-  EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Falling;
+  EXTI_InitStruct.EXTI_Trigger = EXTI_Trigger_Rising;
   EXTI_Init(&EXTI_InitStruct);
   /*  Configurate interrupts for button 1 */
   nvic_struct.NVIC_IRQChannel = EXTI1_IRQn;

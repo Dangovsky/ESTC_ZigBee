@@ -10,8 +10,8 @@
 
 typedef struct button_handlers_s
 {
-    zb_callback_t button_first_click;
-    zb_callback_t button_second_click;
+    zb_callback_t button_left_click;
+    zb_callback_t button_right_click;
     zb_callback_t button_both_click;
 }button_handlers_t;
 

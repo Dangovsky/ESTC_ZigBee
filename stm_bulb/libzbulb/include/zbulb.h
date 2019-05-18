@@ -41,7 +41,7 @@ typedef struct bulb_handlers_s
 
 void init_zbulb(bulb_handlers_t* handlers);
 
-void bulb_parce_packet(zb_uint8_t param) ZB_CALLBACK;
+void bulb_parse_packet(zb_uint8_t param) ZB_CALLBACK;
 
 void bulb_send_on_command(zb_uint8_t param) ZB_CALLBACK;
 void bulb_send_off_command(zb_uint8_t param) ZB_CALLBACK;
