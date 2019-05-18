@@ -14,8 +14,13 @@ volatile zb_uint8_t second_button;
 #endif
 
 #if defined(BUTTONS_TIMER) && defined(BUTTONS_ZB_ALARMS)
-#error defined both timer and zb alarms
+#error defined both timer and zb alarms, choose only one
 #endif
+
+#if !defined(BUTTONS_TIMER) && !defined(BUTTONS_ZB_ALARMS)
+#error define timer or zb alarms
+#endif
+
 button_handlers_t button_handlers = {0};
 
 #ifdef BUTTONS_ZB_ALARMS
