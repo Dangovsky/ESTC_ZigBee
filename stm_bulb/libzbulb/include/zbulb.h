@@ -10,7 +10,7 @@
  *
  *  Library provide a way of communication between light bulb and remote control over ZigBee network.
  *  Also it set a variety of command in commands_t and
- *  calls function from bulb_handlers_t when corresponding command recieved.
+ *  calls function from bulb_handlers_t when corresponding command received.
  */
 
 /*!
@@ -22,7 +22,7 @@ typedef enum commands_e {
     TOGGLE_COMMAND,          /*!< Toggle bulb state */
     BRIGHTNESS_UP_COMMAND,   /*!< Set brightness on step higher */
     BRIGHTNESS_DOWN_COMMAND, /*!< Set brightness on step lower */
-    BRIGHTNESS_COMMAND,      /*!< Set brughtness. This command is the only one which send payload - 8-bit brightness. */
+    BRIGHTNESS_COMMAND,      /*!< Set brightness. This command is the only one which send payload - 8-bit brightness. */
     TOGGLE_COLOR_COMMAND,    /*!< Switch bulb color */
 
 } commands_t;
@@ -41,21 +41,21 @@ typedef struct bulb_tail_s {
  *  Used on receiving device.
  */
 typedef struct bulb_payload_s {
-    zb_uint8_t command;    /*!< Recieved command (always used) */
-    zb_uint8_t brightness; /*!< Payload for BRIGHTNESS_COMMAND (used only when BRIGHTNESS_COMMAND recieved) */
+    zb_uint8_t command;    /*!< Received command (always used) */
+    zb_uint8_t brightness; /*!< Payload for BRIGHTNESS_COMMAND (used only when BRIGHTNESS_COMMAND received) */
 } bulb_payload_t;
 
 /*!
  *  Sructure to hold callbacks for each command on receiving device.
  */
 typedef struct bulb_handlers_s {
-    zb_callback_t bulb_receive_on_command;              /*!< Callback to shedule when ON_COMMAND recieved*/
-    zb_callback_t bulb_receive_off_command;             /*!< Callback to shedule when OFF_COMMAND recieved*/
-    zb_callback_t bulb_receive_toggle_command;          /*!< Callback to shedule when TOGGLE_COMMAND recieved*/
-    zb_callback_t bulb_receive_brightness_up_command;   /*!< Callback to shedule when BRIGHTNESS_UP_COMMAND recieved*/
-    zb_callback_t bulb_receive_brightness_down_command; /*!< Callback to shedule when BRIGHTNESS_DOWN_COMMAND recieved*/
-    zb_callback_t bulb_receive_brightness_command;      /*!< Callback to shedule when BRIGHTNESS_COMMAND recieved*/
-    zb_callback_t bulb_receive_toggle_color_command;    /*!< Callback to shedule when TOGGLE_COLOR_COMMAND recieved*/
+    zb_callback_t bulb_receive_on_command;              /*!< Callback to schedule when ON_COMMAND received*/
+    zb_callback_t bulb_receive_off_command;             /*!< Callback to schedule when OFF_COMMAND received*/
+    zb_callback_t bulb_receive_toggle_command;          /*!< Callback to schedule when TOGGLE_COMMAND received*/
+    zb_callback_t bulb_receive_brightness_up_command;   /*!< Callback to schedule when BRIGHTNESS_UP_COMMAND received*/
+    zb_callback_t bulb_receive_brightness_down_command; /*!< Callback to schedule when BRIGHTNESS_DOWN_COMMAND received*/
+    zb_callback_t bulb_receive_brightness_command;      /*!< Callback to schedule when BRIGHTNESS_COMMAND received*/
+    zb_callback_t bulb_receive_toggle_color_command;    /*!< Callback to schedule when TOGGLE_COLOR_COMMAND received*/
 } bulb_handlers_t;
 
 /*! \brief Initialise function
@@ -109,7 +109,7 @@ void bulb_send_brightness_down_command(zb_uint8_t param) ZB_CALLBACK;
 
 /*! \brief Send function for sending device
  *
- *  Buffer should contain bubl_tail_t struct at it`s tail.
+ *  Buffer should contain bulb_tail_t struct at it`s tail.
  *  \param param - buffer param.
  */
 void bulb_send_brightness_command(zb_uint8_t param) ZB_CALLBACK;

@@ -1,6 +1,6 @@
+#include "zb_common.h"
 #include "zb_aps.h"
 #include "zb_bufpool.h"
-#include "zb_common.h"
 #include "zb_nwk.h"
 #include "zb_scheduler.h"
 #include "zb_zdo.h"
@@ -75,49 +75,49 @@ zb_uint8_t prepare_buf(void) {
     return ZB_REF_FROM_BUF(buf);
 }
 
-void button_first_click(zb_uint8_t param) ZB_CALLBACK {
+void button_right_click(zb_uint8_t param) ZB_CALLBACK {
     param = prepare_buf();
     bulb_send_toggle_command(param);
 
-    is_on = 1 - is_on;
+    is_on = !is_on;
     if (is_on) {
-        led_set_color_Hex(((zb_uint32_t)(brightness) << 24) | colors[current_color]);
+        led_set_color_hex(((zb_uint32_t)(brightness) << 24) | colors[current_color]);
     } else {
-        led_set_color_Hex(0);
+        led_set_color_hex(0);
     }
 }
 
-void button_second_click(zb_uint8_t param) ZB_CALLBACK {
+void button_left_click(zb_uint8_t param) ZB_CALLBACK {
     param = prepare_buf();
     bulb_send_brightness_up_command(param);
 
     brightness += BRIGHTNESS_STEP;
-    led_set_color_Hex(((zb_uint32_t)brightness << 24) | colors[current_color]);
+    led_set_color_hex(((zb_uint32_t)brightness << 24) | colors[current_color]);
 }
 
 void button_both_click(zb_uint8_t param) ZB_CALLBACK {
     param = prepare_buf();
-    bulb_send_color_command(param);
+    bulb_send_toggle_color_command(param);
 
     ++current_color;
     if (current_color >= COLORS_CNT) {
         current_color = 0;
     }
-    led_set_color_Hex(((zb_uint32_t)brightness << 24) | colors[current_color]);
+    led_set_color_hex(((zb_uint32_t)brightness << 24) | colors[current_color]);
 }
 
 void zb_zdo_startup_complete(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
-    button_handlers_t *handlers;
+    button_handlers_t handlers = {0};
 
     if (buf->u.hdr.status == 0) {
         TRACE_MSG(TRACE_APS1, "Device STARTED OK", (FMT__0));
 
         init_led();
-        handlers->button_first_click = button_first_click;
-        handlers->button_second_click = button_second_click;
-        handlers->button_both_click = button_both_click;
-        init_buttons(handlers);
+        handlers.button_right_click = button_right_click;
+        handlers.button_left_click = button_left_click;
+        handlers.button_both_click = button_both_click;
+        init_buttons(&handlers);
     } else {
         TRACE_MSG(TRACE_ERROR, "Device started FAILED status %d", (FMT__D, (int)buf->u.hdr.status));
         zb_free_buf(buf);

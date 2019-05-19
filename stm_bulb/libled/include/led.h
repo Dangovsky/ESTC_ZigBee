@@ -7,7 +7,7 @@
 /*! \file led.h
  *  \brief API for libled
  *  
- *  Library simlify initialise and control of 3-color led color and brightness.
+ *  Library simplify initialise and control of 3-color led color and brightness.
  *  Gamma correction for nonlinear brightness change.
  */
 
@@ -23,7 +23,7 @@ void init_led(void);
 /*! \brief Set choosen LEDs color
  *
  *  Calculate and set comparators to TIM1's PWM.
- *  Fix green color brightnes.
+ *  Fix green color brightness.
  *  Gamma correction for nonlinear brightness change.
  *  \param red, green, blue - brightness of components
  *  \param alfa - alfa chanel

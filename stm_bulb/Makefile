@@ -29,7 +29,7 @@ $(BIN)ztest$(EXE) : $(OBJS3)  $(LIBS) ./libbuttons/libbuttons.a	./libzbulb/libzb
 
 BINS =  $(BIN)zc$(EXE)
 BINS += $(BIN)ze$(EXE)
-#BINS += $(BIN)ztest$(EXE)
+BINS += $(BIN)ztest$(EXE)
 
 all: $(BINS)
 
