@@ -1,5 +1,5 @@
-#ifndef LIBLED_H 
-#define LIBLED_H 
+#ifndef LIBLED_H
+#define LIBLED_H
 
 #include <stm32f4xx.h>
 #include <stm32f4xx_tim.h>
@@ -7,7 +7,8 @@
 /*! \file led.h
  *  \brief API for libled
  *  
- *  DSR ESTC course 5-th task
+ *  Library simlify initialise and control of 3-color led color and brightness.
+ *  Gamma correction for nonlinear brightness change.
  */
 
 /*! \brief Initialise function.
@@ -23,9 +24,9 @@ void init_led(void);
  *
  *  Calculate and set comparators to TIM1's PWM.
  *  Fix green color brightnes.
- *  Logistic function for nonlinear brightness change.
+ *  Gamma correction for nonlinear brightness change.
  *  \param red, green, blue - brightness of components
- *  \parem alfa - alfa chanel
+ *  \param alfa - alfa chanel
  */
 void led_set_color_argb(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue);
 
@@ -36,4 +37,4 @@ void led_set_color_argb(uint8_t alfa, uint8_t red, uint8_t green, uint8_t blue);
  */
 void led_set_color_hex(uint32_t color);
 
-#endif  /* LIBLED_H */
+#endif /* LIBLED_H */
