@@ -13,7 +13,7 @@
  *
  *  Library simplify buttons usage by calling functions from button_handlers_t,
  *  which passed to init_buttons.
- *  Use defines BUTTONS_TIMER or BUTTONS_ZB_ALARMS for choosing way of debouncing.
+ *  Use defines BUTTONS_TIMER or BUTTONS_ZB_ALARMS for choosing way of debouncing. 
  */
 
 /*! 

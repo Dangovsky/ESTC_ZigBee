@@ -1,19 +1,6 @@
 #include "../include/buttons.h"
 
-#define TIME_COMP 150
-
-#ifdef BUTTONS_TIMER
-#define TIM2_PERIOD 16400
-#define TIM2_PRESCALER 1
-volatile zb_uint8_t timer_count;
-volatile zb_uint8_t timer_firstb;
-volatile zb_uint8_t timer_secb;
-#endif
-
-#ifdef BUTTONS_ZB_ALARMS
-volatile zb_uint8_t first_button;
-volatile zb_uint8_t second_button;
-#endif
+#define TIME_COMP 100 /* time in milliseconds, used for debouncing */
 
 #if defined(BUTTONS_TIMER) && defined(BUTTONS_ZB_ALARMS)
 #error defined both timer and zb alarms, choose only one
@@ -23,45 +10,71 @@ volatile zb_uint8_t second_button;
 #error define timer or zb alarms
 #endif
 
+#ifdef BUTTONS_TIMER
+#define TIM2_PERIOD 16400
+#define TIM2_PRESCALER 6 /* this is 6 because strange zboss clocks 
+                          * and to make TIME_COMP independet of type of debouncing, should be 1 */
+volatile zb_uint8_t timer_count;
+#endif
+
+volatile zb_uint8_t first_button;
+volatile zb_uint8_t second_button;
 button_handlers_t button_handlers = {0};
 
-#ifdef BUTTONS_ZB_ALARMS
 void buttons_action(zb_uint8_t param) ZB_CALLBACK {
     if (first_button && second_button) {
         if (button_handlers.button_both_click != NULL) {
+#ifdef BUTTONS_ZB_ALARMS
             zb_schedule_callback(button_handlers.button_both_click, 0);
+#endif
+
+#ifdef BUTTONS_TIMER
+            button_handlers.button_both_click(0);
+#endif
         }
     } else if (first_button) {
         if (button_handlers.button_left_click != NULL) {
+#ifdef BUTTONS_ZB_ALARMS
             zb_schedule_callback(button_handlers.button_left_click, 0);
+#endif
+
+#ifdef BUTTONS_TIMER
+            button_handlers.button_left_click(0);
+#endif
         }
     } else if (second_button) {
         if (button_handlers.button_right_click != NULL) {
+#ifdef BUTTONS_ZB_ALARMS
             zb_schedule_callback(button_handlers.button_right_click, 0);
+#endif
+
+#ifdef BUTTONS_TIMER
+            button_handlers.button_right_click(0);
+#endif
         }
     }
     first_button = second_button = 0;
 }
-#endif
 
 #ifdef BUTTONS_TIMER
 void TIM2_IRQHandler(void) {
     if (TIM_GetITStatus(TIM2, TIM_IT_Update) != RESET) {
+        if (timer_count == TIME_COMP) {
+            buttons_action(0);
+            TIM_Cmd(TIM2, DISABLE);
+        }
         timer_count++;
-        TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
     }
+    TIM_ClearITPendingBit(TIM2, TIM_IT_Update);
 }
 #endif
 
 void EXTI0_IRQHandler(void) {
     if (EXTI_GetITStatus(EXTI_Line0) != RESET) {
 #ifdef BUTTONS_TIMER
-        if (timer_firstb - timer_secb < TIME_COMP) {
-            zb_schedule_callback(button_handlers.button_both_click, 0);
-        } else if (timer_count - timer_firstb > TIME_COMP) {
-            zb_schedule_callback(button_handlers.button_left_click, 0);
-        }
-        timer_firstb = timer_count;
+        timer_count = 0;
+        TIM_Cmd(TIM2, ENABLE);
+        first_button = 1;
 #endif
 
 #ifdef BUTTONS_ZB_ALARMS
@@ -77,16 +90,13 @@ void EXTI0_IRQHandler(void) {
 void EXTI1_IRQHandler(void) {
     if (EXTI_GetITStatus(EXTI_Line1) != RESET) {
 #ifdef BUTTONS_TIMER
-        if (timer_firstb - timer_secb < TIME_COMP) {
-            zb_schedule_callback(button_handlers.button_both_click, 0);
-        } else if (timer_count - timer_firstb > TIME_COMP) {
-            zb_schedule_callback(button_handlers.button_right_click, 0);
-        }
-        timer_secb = timer_count
+        timer_count = 0;
+        TIM_Cmd(TIM2, ENABLE);
+        second_button = 1;
 #endif
 
 #ifdef BUTTONS_ZB_ALARMS
-            zb_schedule_alarm_cancel(buttons_action, ZB_ALARM_ANY_PARAM);
+        zb_schedule_alarm_cancel(buttons_action, ZB_ALARM_ANY_PARAM);
         second_button = 1;
         zb_schedule_alarm(buttons_action, 0, ZB_MILLISECONDS_TO_BEACON_INTERVAL(TIME_COMP));
 #endif
@@ -96,12 +106,6 @@ void EXTI1_IRQHandler(void) {
 }
 
 void init_buttons(button_handlers_t *handlers) {
-#ifdef BUTTONS_TIMER
-    timer_count = 0;
-    timer_firstb = 0;
-    timer_secb = 0;
-#endif
-
 #ifdef BUTTONS_ZB_ALARMS
     first_button = 0;
     second_button = 0;
