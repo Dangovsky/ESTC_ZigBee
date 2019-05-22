@@ -8,8 +8,8 @@
 #include "./libbuttons/include/buttons.h"
 #include "./libzbulb/include/zbulb.h"
 
-zb_uint16_t addr = 0;
-zb_uint8_t brightness = 255;
+static zb_uint16_t addr = 0;
+static zb_uint8_t brightness = 255;
 
 #ifndef ZB_ED_ROLE
 #error define ZB_ED_ROLE to compile ze tests

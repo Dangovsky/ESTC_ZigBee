@@ -5,7 +5,7 @@
 #define TIM1_PULSE 16400
 #define STEP 64
 
-uint8_t gamma_correction[] = {
+static const uint8_t gamma_correction[] = {
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0,
     0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, 1, 1,
     1, 1, 1, 1, 1, 1, 1, 1, 1, 2, 2, 2, 2, 2, 2, 2,

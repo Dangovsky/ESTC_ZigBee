@@ -1,6 +1,6 @@
 #include "../include/zbulb.h"
 
-volatile bulb_handlers_t bulb_handlers = {0};
+static volatile bulb_handlers_t bulb_handlers = {0};
 
 void init_zbulb(bulb_handlers_t *handlers) {
     bulb_handlers = *handlers;

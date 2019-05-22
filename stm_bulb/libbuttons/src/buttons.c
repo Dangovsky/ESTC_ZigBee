@@ -14,12 +14,12 @@
 #define TIM2_PERIOD 16400
 #define TIM2_PRESCALER 6 /* this is 6 because strange zboss clocks 
                           * and to make TIME_COMP independet of type of debouncing, should be 1 */
-volatile zb_uint8_t timer_count;
+static volatile zb_uint8_t timer_count;
 #endif
 
-volatile zb_uint8_t first_button;
-volatile zb_uint8_t second_button;
-button_handlers_t button_handlers = {0};
+static volatile zb_uint8_t first_button;
+static volatile zb_uint8_t second_button;
+static button_handlers_t button_handlers = {0};
 
 void buttons_action(zb_uint8_t param) ZB_CALLBACK {
     if (first_button && second_button) {
