@@ -7,9 +7,10 @@
 
 #include "./libbuttons/include/buttons.h"
 #include "./libzbulb/include/zbulb.h"
-
+/* addres to send packet */
 static zb_uint16_t addr = 0;
-static zb_uint8_t brightness = 255;
+/* brightness to send */
+/* static zb_uint8_t brightness = 255; */
 
 #ifndef ZB_ED_ROLE
 #error define ZB_ED_ROLE to compile ze tests
@@ -54,7 +55,7 @@ MAIN() {
 zb_uint8_t prepare_buf(void) {
     zb_buf_t *buf = zb_get_out_buf();
     bulb_tail_t *tail = ZB_GET_BUF_TAIL(buf, sizeof(bulb_tail_t));
-    tail->brightness = 0;
+    /* tail->brightness = 0; */
     tail->addr = addr;
     return ZB_REF_FROM_BUF(buf);
 }
