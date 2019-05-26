@@ -1,6 +1,8 @@
 # USART command prompt
 
-Enter currently does not work, use Ctrl+J (^J) instead.
+* Current speed is 38400 on PC. Baudrate on STM should be in 1.5 times bigger then on PC.
+* Enter currently does not work, use Ctrl+J (^J) instead
+* Try `ieee 0`. IEEE_TEST defined to test how console response without second stm plate
 
 ## Serial port setup
 
@@ -11,4 +13,3 @@ Enter currently does not work, use Ctrl+J (^J) instead.
     sudo chmod 777 /dev/ttyUSB_
     cu -l /dev/ttyUSB_ -s 38400
 ```
-Baudrate on STM should be in 1.5 times bigger then on PC
