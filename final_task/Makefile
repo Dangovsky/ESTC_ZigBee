@@ -7,7 +7,7 @@ SRCS1 = $(FNAME1).c
 OBJS1 = ${SRCS1:.c=.o}
 
 $(BIN)zc$(EXE) : $(OBJS1)  $(LIBS)
-	$(LINK_BINARY)
+	$(LINK_BINARY) ./microrl/libmicrorl.a
 	$(OBJCOPY) -O ihex $(FNAME1) $(FNAME1).hex
 	$(OBJCOPY) -I ihex -O binary $(FNAME1).hex $(FNAME1).bin
 
