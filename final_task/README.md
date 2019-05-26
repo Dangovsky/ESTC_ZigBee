@@ -1,6 +1,6 @@
 # USART command prompt
 
-## Enter currently does not work, use Ctrl+J (^J) instead.
+Enter currently does not work, use Ctrl+J (^J) instead.
 
 ## Serial port setup
 
@@ -11,4 +11,4 @@
     sudo chmod 777 /dev/ttyUSB_
     cu -l /dev/ttyUSB_ -s 38400
 ```
-## Baudrate on STM should be in 1.5 times bigger then on PC
+Baudrate on STM should be in 1.5 times bigger then on PC
