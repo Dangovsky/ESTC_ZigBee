@@ -532,6 +532,35 @@ static void microrl_get_complite (microrl_t * pThis)
 }
 #endif
 
+/* handle for unexpected write to cosole.
+ * from callback, for example.
+ * 
+ * \author Daniil Tenkov
+ */
+void interrupt_new_line_handler(microrl_t * pThis){
+	char const * tkn_arr [_COMMAND_TOKEN_NMB];
+	int status;
+
+	terminal_newline (pThis);
+#ifdef _USE_HISTORY
+	if (pThis->cmdlen > 0)
+		hist_save_line (&pThis->ring_hist, pThis->cmdline, pThis->cmdlen);
+#endif
+	status = split (pThis, pThis->cmdlen, tkn_arr);
+	if (status == -1){
+		//          pThis->print ("ERROR: Max token amount exseed\n");
+		pThis->print ("ERROR:too many tokens");
+		pThis->print (ENDL);
+	}
+	print_prompt (pThis);
+	pThis->cmdlen = 0;
+	pThis->cursor = 0;
+	memset(pThis->cmdline, 0, _COMMAND_LINE_LEN);
+#ifdef _USE_HISTORY
+	pThis->ring_hist.cur = 0;
+#endif
+}
+
 //*****************************************************************************
 void new_line_handler(microrl_t * pThis){
 	char const * tkn_arr [_COMMAND_TOKEN_NMB];
