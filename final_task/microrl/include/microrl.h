@@ -114,6 +114,4 @@ void microrl_set_sigint_callback (microrl_t * pThis, void (*sigintf)(void));
 // insert char to cmdline (for example call in usart RX interrupt)
 void microrl_insert_char (microrl_t * pThis, int ch);
 
-void interrupt_new_line_handler(microrl_t * pThis);
-
 #endif

@@ -1,8 +1,6 @@
 BUILD_HOME=../../zboss-v1.0/
 include $(BUILD_HOME)/Options
 
-CFLAGS_USER += -DIEEE_TEST
-
 FNAME1 = zc
 
 SRCS1 = $(FNAME1).c
