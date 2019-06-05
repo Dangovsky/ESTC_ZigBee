@@ -1,9 +1,9 @@
-#include "zb_ringbuffer.h"
-#include <string.h>
 #include <stdio.h>
+#include <string.h>
+#include "zb_ringbuffer.h"
 
-#include "./microrl/include/microrl.h"
 #include "./cmd_handlers.c"
+#include "console.h"
 
 #define RING_BUFFER_LENGTH 16
 
@@ -20,18 +20,26 @@ ZB_RING_BUFFER_DECLARE(ring_buffer, zb_uint8_t, RING_BUFFER_LENGTH);
 #define _CMD_IEEE_ADDR "ieee"
 #define _CMD_ACTIVE_EP "ep"
 #define _CMD_SIMPLE_DISC "simple"
+#define _CMD_NEIGHBORS "neighbors"
+#define _CMD_NWK_ADDR "nwk"
+#define _CMD_LEAVE "leave"
+#define _CMD_PERMIT_JOIN "permit_join"
 
-#define _NUM_OF_CMD 5
+#define _NUM_OF_CMD 9
 
-typedef int cmd_t(int, const char* const*);
+typedef int cmd_t(int, const char *const *);
 
 /* available  commands */
-static const void *commands[][2] = {
+static const void *commands[_NUM_OF_CMD][2] = {
     {_CMD_HELP, help_cmd_handler},
     {_CMD_CLEAR, clear_cmd_handler},
     {_CMD_IEEE_ADDR, ieee_cmd_handler},
     {_CMD_ACTIVE_EP, active_ep_cmd_handler},
     {_CMD_SIMPLE_DISC, simple_disk_cmd_handler},
+    {_CMD_NEIGHBORS, neighbors_cmd_handler},
+    {_CMD_NWK_ADDR, nwk_addr_cmd_handler},
+    {_CMD_LEAVE, leave_cmd_handler},
+    {_CMD_PERMIT_JOIN, permit_joining_cmd_handler},
 };
 /* instance of a "micro readline" library */
 microrl_t microrl = {0};
@@ -39,7 +47,6 @@ microrl_t microrl = {0};
 static ring_buffer_t ring_buffer;
 /* "tx is busy" flag */
 static volatile zb_uint8_t tx_in_progress;
-
 
 /* костыль, чтобы вызвать microrl_insert_char вне прирывания */
 void microrl_insert(zb_uint8_t ch) ZB_CALLBACK {
@@ -100,17 +107,17 @@ int execute(int argc, const char *const *argv) {
 
     zb_uint_t i, err = 1;
 
-    for(i = 0; i < _NUM_OF_CMD; i++) {
-        if (!strcmp(argv[0], (char*)(commands[i][0]))) {
-            err = ((cmd_t*)commands[i][1])(argc, argv);
+    for (i = 0; i < _NUM_OF_CMD; i++) {
+        if (!strcmp(argv[0], (char *)(commands[i][0]))) {
+            err = ((cmd_t *)commands[i][1])(argc, argv);
             break;
         }
     }
 
-    if (err)
-    {
-        print("Unknown command or argument missed\n\r"
-              "print 'help' to see available commands.\n\r");
+    if (err) {
+        print(
+            "Unknown command or argument missed\n\r"
+            "print 'help' to see available commands.\n\r");
     }
     return 0;
 }
@@ -167,4 +174,3 @@ void init_console(void) {
     microrl_set_execute_callback(&microrl, execute);
     microrl_set_sigint_callback(&microrl, sigint);
 }
-
