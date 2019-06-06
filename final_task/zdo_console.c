@@ -24,18 +24,6 @@ ZB_RING_BUFFER_DECLARE(ring_buffer, zb_uint8_t, RING_BUFFER_LENGTH);
 #define ENABLE_SERIAL_TR_INTER() USART_ITConfig(USART2, USART_IT_TXE, ENABLE)
 #define DISABLE_SERIAL_TR_INTER() USART_ITConfig(USART2, USART_IT_TXE, DISABLE)
 
-#define _CMD_HELP "help"
-#define _CMD_CLEAR "clear"
-#define _CMD_IEEE_ADDR "ieee"
-#define _CMD_ACTIVE_EP "ep"
-#define _CMD_SIMPLE_DISC "simple"
-#define _CMD_NEIGHBORS "neighbors"
-#define _CMD_NWK_ADDR "nwk"
-#define _CMD_LEAVE "leave"
-#define _CMD_PERMIT_JOIN "permit_join"
-
-#define _NUM_OF_CMD 9
-
 /** available  commands */
 static const void *commands[_NUM_OF_CMD][2] = {
     {_CMD_HELP, help_cmd_handler},
@@ -47,6 +35,8 @@ static const void *commands[_NUM_OF_CMD][2] = {
     {_CMD_NWK_ADDR, nwk_addr_cmd_handler},
     {_CMD_LEAVE, leave_cmd_handler},
     {_CMD_PERMIT_JOIN, permit_joining_cmd_handler},
+    {_CMD_BEACON_REQ, beacon_cmd_handler},
+    {_CMD_DATA_REQ, data_req_handler},
 };
 
 /** ring buffer for writing to usart */

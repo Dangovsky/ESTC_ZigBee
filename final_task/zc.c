@@ -2,6 +2,7 @@
 #include "zb_aps.h"
 #include "zb_bufpool.h"
 #include "zb_nwk.h"
+#include "zb_mac.h"
 #include "zb_scheduler.h"
 #include "zb_zdo.h"
 #include "stm32f4xx.h"

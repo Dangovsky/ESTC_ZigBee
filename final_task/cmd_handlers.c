@@ -22,25 +22,41 @@ void clear_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     }
     return;
 }
- 
+
 /*
  * Help
  */
 void help_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
-    print(CLEAR_LINE
-          "Use TAB key for completion\n\rCommands:\n\r"
-          "\tclear                  - clear screen\n\r"
-          "\tieee        [nwk addr] - get ieee address descriptor\n\r");
     print(
-        "\tep          [nwk addr] - get active endpoints descriptor\n\r"
-        "\tsimple      [nwk addr] [ep] - get simple descriptor\n\r"
-        "\tneighbors   [nwk addr] [start_index](opt) - get neighbors table\n\r");
+        CLEAR_LINE
+        "Use TAB key for completion\n\rCommands:\n\r");
     print(
-        "\tnwk         [ieee addr in 8 space-separated numbers] - get nwk address descriptor\n\r"
-        "\tleave       [ieee addr in 8 space-separated numbers] - device leave the network\n\r");
+        "\t" _CMD_CLEAR
+        "                  - clear screen\n\r"
+        "\t" _CMD_BEACON_REQ
+        "             - send beacon request\n\r"
+        "\t" _CMD_IEEE_ADDR
+        "        [nwk addr] - get ieee address descriptor\n\r");
     print(
-        "\tpermit_join [duration] - open network for new devices for [duration] seconds;\n\r"
-        "\t\ton 0 - close network, on 255 open till new permit_join request");
+        "\t" _CMD_PERMIT_JOIN
+        " [duration] - open network for new devices for [duration] seconds;\n\r"
+        "\t\t\ton 0 - close network, on 255 open till new permit_join request\n\r");
+    print(
+        "\t" _CMD_ACTIVE_EP
+        "          [nwk addr] - get active endpoints descriptor\n\r"
+        "\t" _CMD_SIMPLE_DISC
+        "      [nwk addr] [ep] - get simple descriptor\n\r"
+        "\t" _CMD_NEIGHBORS "   [nwk addr] [start_index](opt) - get neighbors table\n\r");
+    print(
+        "\t" _CMD_NWK_ADDR
+        "         [ieee addr in 8 space-separated numbers] - get nwk address descriptor\n\r"
+        "\t" _CMD_LEAVE
+        "       [ieee addr in 8 space-separated numbers] - device leave the network\n\r");
+    print(
+        "\t" _CMD_DATA_REQ
+        "        [nwk addr] [src ep] [dst ep] [profile id] [payload](opt space-separated)\n\r"
+        "\t\t\t- send apse data request to [nwk addr]");
+
     interrupt_new_line_handler(&microrl);
     if (param) {
         zb_free_buf(ZB_BUF_FROM_REF(param));
@@ -219,6 +235,7 @@ void permit_joining_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_uint8_t i = 1;
 
     if (i >= argc_g) {
+        zb_free_buf(buf);
         ERROR_MESS;
         return;
     }
@@ -231,5 +248,88 @@ void permit_joining_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_zdo_mgmt_permit_joining_req(param, permit_joining_callback);
 
     SUCCESS_MESS("Permit join");
+    return;
+}
+
+/*
+ * Beacon request
+ */
+void beacon_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
+    zb_beacon_request_command();
+
+    if (param) {
+        zb_free_buf(ZB_BUF_FROM_REF(param));
+    }
+    print(CLEAR_LINE "> Beacon request is send");
+    interrupt_new_line_handler(&microrl);
+    return;
+}
+
+/*
+ * APSE data request
+ */
+void data_req_handler(zb_uint8_t param) ZB_CALLBACK {
+    zb_buf_t *buf = ZB_BUF_FROM_REF(param);
+    zb_apsde_data_req_t *req = ZB_GET_BUF_TAIL(buf, sizeof(zb_apsde_data_req_t));
+    zb_uint8_t i = 1;
+    char *ptr;
+
+    if (i >= argc_g) {
+        zb_free_buf(buf);
+        ERROR_MESS;
+        return;
+    }
+    req->dst_addr.addr_short = atoi(argv_g[i]);
+
+    ++i;
+    if (i >= argc_g) {
+        zb_free_buf(buf);
+        ERROR_MESS;
+        return;
+    }
+    req->src_endpoint = atoi(argv_g[i]);
+
+    ++i;
+    if (i >= argc_g) {
+        zb_free_buf(buf);
+        ERROR_MESS;
+        return;
+    }
+    req->dst_endpoint = atoi(argv_g[i]);
+
+    ++i;
+    if (i >= argc_g) {
+        zb_free_buf(buf);
+        ERROR_MESS;
+        return;
+    }
+    req->profileid = atoi(argv_g[i]);
+
+    /* first word in payload */
+    ++i;
+    if (i >= argc_g) {
+        zb_free_buf(buf);
+        ERROR_MESS;
+        return;
+    }
+    ZB_BUF_INITIAL_ALLOC(buf, strlen(argv_g[i]), ptr);
+    strcpy(ptr, argv_g[i]);
+
+    /* other words in payload (if exist) */
+    ++i;
+    for (; i < argc_g; ++i) {
+        ZB_BUF_ALLOC_RIGHT(buf, strlen(argv_g[i]), ptr);
+        strcat(ptr, argv_g[i]);
+    }
+
+    req->addr_mode = ZB_APS_ADDR_MODE_16_ENDP_PRESENT;
+    req->tx_options = ZB_APSDE_TX_OPT_ACK_TX;
+    req->radius = 5;
+    buf->u.hdr.handle = 0x11;
+
+    ZB_SCHEDULE_CALLBACK(zb_apsde_data_request, ZB_REF_FROM_BUF(buf));
+
+    print(CLEAR_LINE "> Sendind apse data request");
+    interrupt_new_line_handler(&microrl);
     return;
 }
