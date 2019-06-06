@@ -12,12 +12,11 @@
 ZB_RING_BUFFER_DECLARE(ring_buffer, zb_uint8_t, RING_BUFFER_LENGTH);
 
 /**
- * warning: actual baudrate will be in 1.5 times bigger.
- * see BAUGTH_RATE_CORRECTION.
+ * warning: actual baudrate will be in 1.5 times bigger. see BAUD_RATE_CORRECTION.
  */
-#define BAUGHT_RATE 38200
-/** Becoase of zb clock baudrate must be in 1.5 times bigger then on pc */
-#define BAUGTH_RATE_CORRECTION(b) (zb_uint16_t)((b) + (b) / 2)
+#define BAUD_RATE 38200
+/** Because of zb clock baudrate must be in 1.5 times bigger then on pc */
+#define BAUD_RATE_CORRECTION(b) (zb_uint16_t)((b) + (b) / 2)
 
 #define DISABLE_SERIAL_INTER() NVIC_DisableIRQ(USART2_IRQn)
 #define ENABLE_SERIAL_INTER() NVIC_EnableIRQ(USART2_IRQn)
@@ -59,7 +58,7 @@ static ring_buffer_t ring_buffer_rx;
 /** "tx is busy" flag */
 static volatile zb_uint8_t tx_in_progress;
 
-/** rx_buffer_flush is sheduled flag */
+/** rx_buffer_flush is scheduled flag */
 static volatile zb_uint8_t rx_in_progress;
 
 void rx_buffer_flush(zb_uint8_t param) ZB_CALLBACK {
@@ -128,15 +127,15 @@ void print(const char *str) {
     }
 }
 
-/* Actual execute of command.
+/* Actual executing of the command.
  *
- * it is allow to use delayed get_out_buf by cost of memory. see "execute" function.
+ * it is allow to use delayed get_out_buf at the cost of memory. See "execute" function.
  */
 void delayed_execute(zb_uint8_t param) ZB_CALLBACK {
     zb_uint8_t i;
 
     for (i = 0; i < _NUM_OF_CMD; i++) {
-        if (!strcmp(argv_g[0], (char *)(commands[i][0]))) {            
+        if (!strcmp(argv_g[0], (char *)(commands[i][0]))) {
             ZB_SCHEDULE_CALLBACK((zb_callback_t)commands[i][1], param);
             return;
         }
@@ -147,18 +146,17 @@ void delayed_execute(zb_uint8_t param) ZB_CALLBACK {
     interrupt_new_line_handler(&microrl);
 }
 
-
 /* execute callback for microrl library
  * warning: don't write to argv; read only
  *
- * allow to use delayed get_out_buf by cost of memory
+ * allow to use delayed get_out_buf at the cost of memory
  */
 int execute(int argc, const char *const *argv) {
     if (argc == 0) {
         return 1;
     }
-    /* copy is needed becouse argv not be the same after end of this function */
-    for (argc_g = 0; argc_g < argc; ++argc_g) {        
+    /* copy is needed because argv not be the same after end of this function */
+    for (argc_g = 0; argc_g < argc; ++argc_g) {
         strcpy(argv_g[argc_g], argv[argc_g]);
     }
     ++argc_g;
@@ -197,7 +195,7 @@ void init_usart(void) {
 
     USART_StructInit(&usart);
     usart.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-    usart.USART_BaudRate = BAUGTH_RATE_CORRECTION(BAUGHT_RATE); /* for 38400 on PC */
+    usart.USART_BaudRate = BAUD_RATE_CORRECTION(BAUD_RATE); /* for 38400 on PC */
     usart.USART_Parity = USART_Parity_No;
     usart.USART_StopBits = USART_StopBits_1;
     usart.USART_WordLength = USART_WordLength_8b;

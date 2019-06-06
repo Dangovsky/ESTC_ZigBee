@@ -1,15 +1,18 @@
 #include "cmd_callbacks.c"
 #include "console.h"
 
-#define SUCCESS_MESS                                                         \
-    print("> Request is send. When responce arrived it will be printed.");   \
+#define SUCCESS_MESS                                                       \
+    print("> Request is send. When responce arrived it will be printed."); \
     interrupt_new_line_handler(&microrl);
 
-#define ERROR_MESS                                                           \
+#define ERROR_MESS                                                            \
     print("> Incorrect arguments. Print 'help', to see commands arguments."); \
     interrupt_new_line_handler(&microrl);
 
-void clear_cmd_handler(zb_uint8_t param) ZB_CALLBACK{
+/*
+ * Clear
+ */
+void clear_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     print(
         "\033[2J"  /* ESC seq for clear entire screen            */
         "\033[H"); /* ESC seq for move cursor at left-top corner */
@@ -18,27 +21,33 @@ void clear_cmd_handler(zb_uint8_t param) ZB_CALLBACK{
     return;
 }
 
-void help_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
+/*
+ * Help
+ */
+void help_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     print(
         "Use TAB key for completion\n\rCommands:\n\r"
         "\tclear                  - clear screen\n\r"
-        "\tieee        [nwk addr] - get ieee address discriptor\n\r");
+        "\tieee        [nwk addr] - get ieee address descriptor\n\r");
     print(
-        "\tep          [nwk addr] - get active endpoints discriptor\n\r"
-        "\tsimple      [nwk addr] [ep] - get simple discriptor\n\r"
+        "\tep          [nwk addr] - get active endpoints descriptor\n\r"
+        "\tsimple      [nwk addr] [ep] - get simple descriptor\n\r"
         "\tneighbors   [nwk addr] [start_index](opt) - get neighbors table\n\r");
     print(
-        "\tnwk         [ieee addr in 8 space-separated numbers] - get nwk address discriptor\n\r"
+        "\tnwk         [ieee addr in 8 space-separated numbers] - get nwk address descriptor\n\r"
         "\tleave       [ieee addr in 8 space-separated numbers] - device leave the network\n\r");
     print(
-        "\tpermit_join [duration] - open network for new devices for [duration] seconds;\n\r"    
-            "\t\ton 0 - close network, on 255 open till new permit_join request");
+        "\tpermit_join [duration] - open network for new devices for [duration] seconds;\n\r"
+        "\t\ton 0 - close network, on 255 open till new permit_join request");
     interrupt_new_line_handler(&microrl);
     zb_free_buf(ZB_BUF_FROM_REF(param));
     return;
 }
 
-void ieee_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
+/*
+ * IEEE
+ */
+void ieee_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
     zb_zdo_ieee_addr_req_t *req;
     zb_uint8_t i = 1;
@@ -58,7 +67,10 @@ void ieee_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
     return;
 }
 
-void active_ep_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
+/*
+ * active ep 
+ */
+void active_ep_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
     zb_zdo_active_ep_req_t *req;
     zb_uint8_t i = 1;
@@ -72,7 +84,10 @@ void active_ep_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
     return;
 }
 
-void simple_disk_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
+/*
+ * simple descriptor 
+ */
+void simple_disk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
     zb_zdo_simple_desc_req_t *req;
     int i = 1;
@@ -94,7 +109,11 @@ void simple_disk_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
     return;
 }
 
-void neighbors_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
+/*
+ * Mgmt_Lqi_req 
+ * get neighbor table
+ */
+void neighbors_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
     zb_zdo_mgmt_lqi_param_t *req;
     int i = 1;
@@ -113,7 +132,10 @@ void neighbors_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
     return;
 }
 
-void nwk_addr_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
+/*
+ *  NWK_addr_req
+ */
+void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
     zb_zdo_nwk_addr_req_param_t *req;
     zb_uint8_t i = 1, j;
@@ -133,12 +155,15 @@ void nwk_addr_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
     req->request_type = ZB_ZDO_SINGLE_DEVICE_RESP;
     req->start_index = 0;
     zb_zdo_nwk_addr_req(ZB_REF_FROM_BUF(buf), nwk_addr_callback);
-    
+
     SUCCESS_MESS;
     return;
 }
 
-void leave_cmd_handler(zb_uint8_t param) ZB_CALLBACK{
+/*
+ * Mgmt_Leave_req
+ */
+void leave_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
     zb_zdo_mgmt_leave_param_t *req;
     zb_uint8_t i = 1, j;
@@ -166,7 +191,7 @@ void leave_cmd_handler(zb_uint8_t param) ZB_CALLBACK{
 /*
  * Permit joining
  */
-void permit_joining_cmd_handler(zb_uint8_t param)  ZB_CALLBACK{
+void permit_joining_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
     zb_zdo_mgmt_permit_joining_req_param_t *req;
     zb_uint8_t i = 1;

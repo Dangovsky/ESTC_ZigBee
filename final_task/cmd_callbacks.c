@@ -11,7 +11,6 @@
 #define ARG_64(a) (zb_uint8_t)((a)[7]), (zb_uint8_t)((a)[6]), (zb_uint8_t)((a)[5]), (zb_uint8_t)((a)[4]), \
                   (zb_uint8_t)((a)[3]), (zb_uint8_t)((a)[2]), (zb_uint8_t)((a)[1]), (zb_uint8_t)((a)[0])
 
-
 /*
  * IEEE
  */
@@ -83,7 +82,7 @@ void active_ep_callback(zb_uint8_t param) ZB_CALLBACK {
 }
 
 /*
- * simple discriptor 
+ * simple descriptor 
  */
 void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -92,12 +91,12 @@ void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
     char str[100];
     zb_uint_t i;
 
-    sprintf(str, "\n\rSimple desciptor status %hd, addr 0x%x\n\r",
+    sprintf(str, "\n\rSimple descriptor status %hd, addr 0x%x\n\r",
             resp->hdr.status, resp->hdr.nwk_addr);
     print(str);
 
     if (resp->hdr.status != ZB_ZDP_STATUS_SUCCESS || resp->hdr.nwk_addr != 0x0) {
-        print("Error incorrect status/addr");
+        print("> Error incorrect status/addr");
     }
 
     sprintf(str, "\tep: %d, app profile: %d, dev id: %d, dev ver: %d\n\r",
@@ -113,7 +112,10 @@ void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_uint8_t *cnt_ptr = &(resp->simple_desc.app_input_cluster_count);
     zb_uint16_t *ptr = (zb_uint16_t *)(cnt_ptr + 1);
 
-    for (i = 0, print("\n\r\tinput clusters: "); i < *(cnt_ptr); i++) {
+    if (*cnt_ptr) {
+        print("\n\r\t\tinput clusters: ");
+    }
+    for (i = 0; i < *(cnt_ptr); i++) {
         sprintf(str, "%d ", *ptr);
         print(str);
         ++ptr;
@@ -122,8 +124,11 @@ void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
     cnt_ptr = (zb_uint8_t *)ptr;
     ptr = (zb_uint16_t *)(cnt_ptr + 1);
 
-    sprintf(str, "\n\r\totput cluster count %x", *(cnt_ptr));
-    for (i = 0, print("\n\r\tinput clusters: "); i < *(cnt_ptr); i++) {
+    sprintf(str, "\n\r\toutput cluster count %x", *(cnt_ptr));
+    if (*(cnt_ptr)) {
+        print("\n\r\t\toutput clusters: ")
+    }
+    for (i = 0; i < *(cnt_ptr); i++) {
         sprintf(str, "%d ", *ptr);
         print(str);
         ++ptr;
