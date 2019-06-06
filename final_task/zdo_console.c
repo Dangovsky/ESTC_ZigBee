@@ -5,9 +5,19 @@
 #include "./cmd_handlers.c"
 #include "console.h"
 
-#define RING_BUFFER_LENGTH 16
+/** Delay before rx_buffer_flush call in milliseconds */
+#define RX_DELAY 100
 
+#define RING_BUFFER_LENGTH 16
 ZB_RING_BUFFER_DECLARE(ring_buffer, zb_uint8_t, RING_BUFFER_LENGTH);
+
+/**
+ * warning: actual baudrate will be in 1.5 times bigger.
+ * see BAUGTH_RATE_CORRECTION.
+ */
+#define BAUGHT_RATE 38200
+/** Becoase of zb clock baudrate must be in 1.5 times bigger then on pc */
+#define BAUGTH_RATE_CORRECTION(b) (zb_uint16_t)((b) + (b) / 2)
 
 #define DISABLE_SERIAL_INTER() NVIC_DisableIRQ(USART2_IRQn)
 #define ENABLE_SERIAL_INTER() NVIC_EnableIRQ(USART2_IRQn)
@@ -29,7 +39,7 @@ ZB_RING_BUFFER_DECLARE(ring_buffer, zb_uint8_t, RING_BUFFER_LENGTH);
 
 typedef int cmd_t(int, const char *const *);
 
-/* available  commands */
+/** available  commands */
 static const void *commands[_NUM_OF_CMD][2] = {
     {_CMD_HELP, help_cmd_handler},
     {_CMD_CLEAR, clear_cmd_handler},
@@ -41,32 +51,53 @@ static const void *commands[_NUM_OF_CMD][2] = {
     {_CMD_LEAVE, leave_cmd_handler},
     {_CMD_PERMIT_JOIN, permit_joining_cmd_handler},
 };
-/* instance of a "micro readline" library */
+/** instance of a "micro readline" library */
 microrl_t microrl = {0};
-/* ring buffer for writing to usart */
-static ring_buffer_t ring_buffer;
-/* "tx is busy" flag */
+/** ring buffer for writing to usart */
+static ring_buffer_t ring_buffer_tx;
+/** ring buffer for sending char to microrl */
+static ring_buffer_t ring_buffer_rx;
+/** "tx is busy" flag */
 static volatile zb_uint8_t tx_in_progress;
+/** rx_buffer_flush is sheduled flag */
+static volatile zb_uint8_t rx_in_progress;
 
-/* костыль, чтобы вызвать microrl_insert_char вне прирывания */
-void microrl_insert(zb_uint8_t ch) ZB_CALLBACK {
-    microrl_insert_char(&microrl, ch);
+void rx_buffer_flush(zb_uint8_t param) ZB_CALLBACK {
+    DISABLE_SERIAL_INTER();
+    volatile zb_uint8_t *p = ZB_RING_BUFFER_PEEK(&ring_buffer_rx);
+    while (p) {
+        ENABLE_SERIAL_INTER();
+        microrl_insert_char(&microrl, *p);
+        DISABLE_SERIAL_INTER();
+
+        ZB_RING_BUFFER_FLUSH_GET(&ring_buffer_rx);
+        /* ((&SER_CTX().tx_buf) -> written--, ((&SER_CTX().tx_buf) -> read_i = ((&SER_CTX().tx_buf)->read_i + 1) % ZB_RING_BUFFER_CAPACITY(&SER_CTX().tx_buf))); 
+         */
+        p = ZB_RING_BUFFER_PEEK(&ring_buffer_rx);
+    }
+    ENABLE_SERIAL_INTER();
+    rx_in_progress = 0;
 }
 
 void USART2_IRQHandler() {
     if (USART_GetITStatus(USART2, USART_IT_RXNE) != RESET) {
-        /* костыль, чтобы вызвать microrl_insert_char вне прирывания
-         * microrl_insert_char(&microrl, USART_ReceiveData(USART2)); */
-        ZB_SCHEDULE_CALLBACK(microrl_insert, USART_ReceiveData(USART2));
+        if (!ZB_RING_BUFFER_IS_FULL(&ring_buffer_rx)) {
+            ZB_RING_BUFFER_PUT(&ring_buffer_rx, USART_ReceiveData(USART2));
+        }
+        if (!rx_in_progress) {
+            rx_in_progress = 1;
+            ZB_SCHEDULE_ALARM(rx_buffer_flush, 0, ZB_MILLISECONDS_TO_BEACON_INTERVAL(RX_DELAY)); /* Start sending char to microrl */
+        }
+
         USART_ClearITPendingBit(USART2, USART_IT_RXNE);
     }
 
     if (USART_GetITStatus(USART2, USART_IT_TXE) != RESET) {
-        volatile zb_uint8_t *p = ZB_RING_BUFFER_PEEK(&ring_buffer);
+        volatile zb_uint8_t *p = ZB_RING_BUFFER_PEEK(&ring_buffer_tx);
         if (p) {
             USART_SendData(USART2, *p);
             tx_in_progress = 1;
-            ZB_RING_BUFFER_FLUSH_GET(&ring_buffer);
+            ZB_RING_BUFFER_FLUSH_GET(&ring_buffer_tx);
             /* ((&SER_CTX().tx_buf) -> written--, ((&SER_CTX().tx_buf) -> read_i = ((&SER_CTX().tx_buf)->read_i + 1) % ZB_RING_BUFFER_CAPACITY(&SER_CTX().tx_buf))); 
              */
         } else { /* No more data */
@@ -85,8 +116,8 @@ void print(const char *str) {
     len = strlen(str);
     while (len) {
         DISABLE_SERIAL_INTER();
-        if (!ZB_RING_BUFFER_IS_FULL(&ring_buffer)) {
-            ZB_RING_BUFFER_PUT(&ring_buffer, *str);
+        if (!ZB_RING_BUFFER_IS_FULL(&ring_buffer_tx)) {
+            ZB_RING_BUFFER_PUT(&ring_buffer_tx, *str);
             str++;
             len--;
         }
@@ -146,13 +177,14 @@ void init_usart(void) {
     gpio.GPIO_OType = GPIO_OType_PP;
     gpio.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(GPIOD, &gpio);
+    BAUD_RATE_38400
 
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource5, GPIO_AF_USART2);
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource6, GPIO_AF_USART2);
 
     USART_StructInit(&usart);
     usart.USART_Mode = USART_Mode_Rx | USART_Mode_Tx;
-    usart.USART_BaudRate = 57600; /* for 38400 on PC */
+    usart.USART_BaudRate = BAUGTH_RATE_CORRECTION(BAUGHT_RATE); /* for 38400 on PC */
     usart.USART_Parity = USART_Parity_No;
     usart.USART_StopBits = USART_StopBits_1;
     usart.USART_WordLength = USART_WordLength_8b;
@@ -168,7 +200,9 @@ void init_usart(void) {
 
 void init_console(void) {
     tx_in_progress = 0;
-    ZB_RING_BUFFER_INIT(&ring_buffer);
+    rx_in_progress = 0;
+    ZB_RING_BUFFER_INIT(&ring_buffer_tx);
+    ZB_RING_BUFFER_INIT(&ring_buffer_rx);
     init_usart();
     microrl_init(&microrl, print);
     microrl_set_execute_callback(&microrl, execute);
