@@ -39,6 +39,9 @@ static const void *commands[_NUM_OF_CMD][2] = {
     {_CMD_DATA_REQ, data_req_handler},
 };
 
+/** array for 'complet' function */
+static char *variants[_NUM_OF_CMD + 1];
+
 /** ring buffer for writing to usart */
 static ring_buffer_t ring_buffer_tx;
 
@@ -161,6 +164,36 @@ void sigint(void) {
     print("^C catched!\n\r");
 }
 
+/* completion callback for microrl library */
+char **complet(int argc, const char *const *argv) {
+    zb_uint8_t j = 0;
+    char *bit;
+
+    variants[0] = NULL;
+
+    /* if there is token in cmdline */
+    if (argc == 1) {
+        /* get last entered token */
+        bit = (char *)argv[argc - 1];
+        /* iterate through our available token and match it */
+        for (int i = 0; i < _NUM_OF_CMD; i++) {
+            if (strstr(commands[i][0], bit) == (char *)(commands[i][0])) {
+                variants[j] = (char *)(commands[i][0]);
+                ++j;
+            }
+        }
+    } else {  // if there is no token in cmdline, just print all available token
+        for (; j < _NUM_OF_CMD; j++) {
+            variants[j] = (char *)(commands[j][0]);
+        }
+    }
+
+    /* note: last ptr in array always must be NULL */
+    variants[j] = NULL;
+
+    return variants;
+}
+
 /* USART2
  * | TX  | RX  |
  * | PD5 | PD6 |
@@ -209,4 +242,5 @@ void init_console(void) {
     microrl_init(&microrl, print);
     microrl_set_execute_callback(&microrl, execute);
     microrl_set_sigint_callback(&microrl, sigint);
+    microrl_set_complete_callback(&microrl, complet);
 }
