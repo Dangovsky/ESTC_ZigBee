@@ -1,12 +1,12 @@
 #include "cmd_callbacks.c"
 #include "console.h"
 
-#define SUCCESS_MESS                                                       \
-    print("> Request is send. When responce arrived it will be printed."); \
+#define SUCCESS_MESS(str)                                                                     \
+    print(CLEAR_LINE "> " str " request is send. When responce arrived it will be printed."); \
     interrupt_new_line_handler(&microrl);
 
-#define ERROR_MESS                                                            \
-    print("> Incorrect arguments. Print 'help', to see commands arguments."); \
+#define ERROR_MESS                                                                       \
+    print(CLEAR_LINE "> Incorrect arguments. Print 'help', to see commands arguments."); \
     interrupt_new_line_handler(&microrl);
 
 /*
@@ -17,18 +17,20 @@ void clear_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         "\033[2J"  /* ESC seq for clear entire screen            */
         "\033[H"); /* ESC seq for move cursor at left-top corner */
     interrupt_new_line_handler(&microrl);
-    zb_free_buf(ZB_BUF_FROM_REF(param));
+    if (param) {
+        zb_free_buf(ZB_BUF_FROM_REF(param));
+    }
     return;
 }
-
+ 
 /*
  * Help
  */
 void help_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
-    print(
-        "Use TAB key for completion\n\rCommands:\n\r"
-        "\tclear                  - clear screen\n\r"
-        "\tieee        [nwk addr] - get ieee address descriptor\n\r");
+    print(CLEAR_LINE
+          "Use TAB key for completion\n\rCommands:\n\r"
+          "\tclear                  - clear screen\n\r"
+          "\tieee        [nwk addr] - get ieee address descriptor\n\r");
     print(
         "\tep          [nwk addr] - get active endpoints descriptor\n\r"
         "\tsimple      [nwk addr] [ep] - get simple descriptor\n\r"
@@ -40,7 +42,9 @@ void help_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         "\tpermit_join [duration] - open network for new devices for [duration] seconds;\n\r"
         "\t\ton 0 - close network, on 255 open till new permit_join request");
     interrupt_new_line_handler(&microrl);
-    zb_free_buf(ZB_BUF_FROM_REF(param));
+    if (param) {
+        zb_free_buf(ZB_BUF_FROM_REF(param));
+    }
     return;
 }
 
@@ -61,9 +65,12 @@ void ieee_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     req->request_type = ZB_ZDO_SINGLE_DEV_RESPONSE;
     req->start_index = 0;
 
-    zb_zdo_ieee_addr_req(ZB_REF_FROM_BUF(buf), ieee_addr_callback);
-
-    SUCCESS_MESS;
+#ifdef IEEE_TEST
+    ZB_SCHEDULE_ALARM(ieee_addr_callback, param, 100);
+#else
+    zb_zdo_ieee_addr_req(param, ieee_addr_callback);
+#endif
+    SUCCESS_MESS("IEEE");
     return;
 }
 
@@ -75,23 +82,31 @@ void active_ep_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_zdo_active_ep_req_t *req;
     zb_uint8_t i = 1;
 
+    if (i >= argc_g) {
+        ERROR_MESS;
+        return;
+    }
     ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_active_ep_req_t), req);
     req->nwk_addr = atoi(argv_g[i]);
 
-    zb_zdo_active_ep_req(ZB_REF_FROM_BUF(buf), active_ep_callback);
+    zb_zdo_active_ep_req(param, active_ep_callback);
 
-    SUCCESS_MESS;
+    SUCCESS_MESS("Active end points");
     return;
 }
 
 /*
  * simple descriptor 
  */
-void simple_disk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
+void simple_desk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
     zb_zdo_simple_desc_req_t *req;
     int i = 1;
 
+    if (i >= argc_g) {
+        ERROR_MESS;
+        return;
+    }
     ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_simple_desc_req_t), req);
     req->nwk_addr = atoi(argv_g[i]);
 
@@ -103,9 +118,8 @@ void simple_disk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     }
     req->endpoint = atoi(argv_g[i]);
 
-    zb_zdo_simple_desc_req(ZB_REF_FROM_BUF(buf), simple_desc_callback);
-
-    SUCCESS_MESS;
+    zb_zdo_simple_desc_req(param, simple_desc_callback);
+    SUCCESS_MESS("Simple desk");
     return;
 }
 
@@ -118,6 +132,10 @@ void neighbors_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_zdo_mgmt_lqi_param_t *req;
     int i = 1;
 
+    if (i >= argc_g) {
+        ERROR_MESS;
+        return;
+    }
     req = ZB_GET_BUF_TAIL(buf, sizeof(zb_zdo_mgmt_lqi_param_t));
     req->dst_addr = atoi(argv_g[i]);
 
@@ -128,7 +146,9 @@ void neighbors_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         req->start_index = atoi(argv_g[i]);
     }
 
-    SUCCESS_MESS;
+    zb_zdo_mgmt_lqi_req(param, neighbors_callback);
+
+    SUCCESS_MESS("Neighbors");
     return;
 }
 
@@ -154,9 +174,10 @@ void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     req->dst_addr = 0;
     req->request_type = ZB_ZDO_SINGLE_DEVICE_RESP;
     req->start_index = 0;
-    zb_zdo_nwk_addr_req(ZB_REF_FROM_BUF(buf), nwk_addr_callback);
 
-    SUCCESS_MESS;
+    zb_zdo_nwk_addr_req(param, nwk_addr_callback);
+
+    SUCCESS_MESS("NWK");
     return;
 }
 
@@ -182,9 +203,10 @@ void leave_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     req->dst_addr = 0;
     req->remove_children = ZB_FALSE;
     req->rejoin = ZB_FALSE;
-    zdo_mgmt_leave_req(ZB_REF_FROM_BUF(buf), leave_callback);
 
-    SUCCESS_MESS;
+    zdo_mgmt_leave_req(param, leave_callback);
+
+    SUCCESS_MESS("Leave");
     return;
 }
 
@@ -196,13 +218,18 @@ void permit_joining_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_zdo_mgmt_permit_joining_req_param_t *req;
     zb_uint8_t i = 1;
 
+    if (i >= argc_g) {
+        ERROR_MESS;
+        return;
+    }
     req = ZB_GET_BUF_PARAM(buf, zb_zdo_mgmt_permit_joining_req_param_t);
     req->permit_duration = atoi(argv_g[i]);
 
     req->dest_addr = 0;
     req->tc_significance = 0;
-    zb_zdo_mgmt_permit_joining_req(ZB_REF_FROM_BUF(buf), permit_joining_callback);
 
-    SUCCESS_MESS;
+    zb_zdo_mgmt_permit_joining_req(param, permit_joining_callback);
+
+    SUCCESS_MESS("Permit join");
     return;
 }

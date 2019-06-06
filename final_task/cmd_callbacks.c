@@ -21,7 +21,7 @@ void ieee_addr_callback(zb_uint8_t param) ZB_CALLBACK {
     sprintf(str, "\n\rget ieee address responce:\n\r\tstatus: %hd\n\r\tnwk address: %d\n\r",
             status, nwk_addr);
     print(str);
-    sprintf(str, "\tieee address: " FORMAT_64 "\n\r",
+    sprintf(str, "\tieee address: " FORMAT_64,
             ARG_64(ieee_addr));
     print(str);
     interrupt_new_line_handler(&microrl);
@@ -42,7 +42,7 @@ void ieee_addr_callback(zb_uint8_t param) ZB_CALLBACK {
     sprintf(str, "\n\rget ieee address responce:\n\r\tstatus: %hd\n\r\tnwk address: %d\n\r",
             resp->status, nwk_addr);
     print(str);
-    sprintf(str, "\tieee address: " FORMAT_64 "\n\r",
+    sprintf(str, "\tieee address: " FORMAT_64,
             ARG_64(ieee_addr));
     print(str);
     interrupt_new_line_handler(&microrl);
@@ -126,7 +126,7 @@ void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
 
     sprintf(str, "\n\r\toutput cluster count %x", *(cnt_ptr));
     if (*(cnt_ptr)) {
-        print("\n\r\t\toutput clusters: ")
+        print("\n\r\t\toutput clusters: ");
     }
     for (i = 0; i < *(cnt_ptr); i++) {
         sprintf(str, "%d ", *ptr);

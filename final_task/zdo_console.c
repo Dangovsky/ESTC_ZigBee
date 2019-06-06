@@ -42,7 +42,7 @@ static const void *commands[_NUM_OF_CMD][2] = {
     {_CMD_CLEAR, clear_cmd_handler},
     {_CMD_IEEE_ADDR, ieee_cmd_handler},
     {_CMD_ACTIVE_EP, active_ep_cmd_handler},
-    {_CMD_SIMPLE_DISC, simple_disk_cmd_handler},
+    {_CMD_SIMPLE_DISC, simple_desk_cmd_handler},
     {_CMD_NEIGHBORS, neighbors_cmd_handler},
     {_CMD_NWK_ADDR, nwk_addr_cmd_handler},
     {_CMD_LEAVE, leave_cmd_handler},
@@ -58,7 +58,7 @@ static ring_buffer_t ring_buffer_rx;
 /** "tx is busy" flag */
 static volatile zb_uint8_t tx_in_progress;
 
-/** rx_buffer_flush is scheduled flag */
+/** "rx_buffer_flush is scheduled" flag */
 static volatile zb_uint8_t rx_in_progress;
 
 void rx_buffer_flush(zb_uint8_t param) ZB_CALLBACK {
@@ -103,6 +103,8 @@ void USART2_IRQHandler() {
             tx_in_progress = 0;
             DISABLE_SERIAL_TR_INTER();
         }
+
+        USART_ClearITPendingBit(USART2, USART_IT_TXE);
     }
 }
 
@@ -140,9 +142,9 @@ void delayed_execute(zb_uint8_t param) ZB_CALLBACK {
             return;
         }
     }
-    print(
-        "Unknown command.\n\r"
-        "print 'help' to see available commands.\n\r");
+    print(CLEAR_LINE
+          "Unknown command.\n\r"
+          "print 'help' to see available commands.");
     interrupt_new_line_handler(&microrl);
 }
 
@@ -159,7 +161,6 @@ int execute(int argc, const char *const *argv) {
     for (argc_g = 0; argc_g < argc; ++argc_g) {
         strcpy(argv_g[argc_g], argv[argc_g]);
     }
-    ++argc_g;
 
     ZB_GET_OUT_BUF_DELAYED(delayed_execute);
     return 0;

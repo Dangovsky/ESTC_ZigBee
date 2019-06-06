@@ -1,6 +1,10 @@
 #ifndef CONSOLE_H
 #define CONSOLE_H
 
+#define CLEAR_LINE                                         \
+    "\033[2K" /* ESC seq for clear entire line          */ \
+    "\r"      /* ESC seq for move cursor at and of line */
+
 #include "./microrl/include/microrl.h"
 
 /** 
