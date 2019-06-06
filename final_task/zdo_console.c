@@ -37,8 +37,6 @@ ZB_RING_BUFFER_DECLARE(ring_buffer, zb_uint8_t, RING_BUFFER_LENGTH);
 
 #define _NUM_OF_CMD 9
 
-typedef int cmd_t(int, const char *const *);
-
 /** available  commands */
 static const void *commands[_NUM_OF_CMD][2] = {
     {_CMD_HELP, help_cmd_handler},
@@ -51,14 +49,16 @@ static const void *commands[_NUM_OF_CMD][2] = {
     {_CMD_LEAVE, leave_cmd_handler},
     {_CMD_PERMIT_JOIN, permit_joining_cmd_handler},
 };
-/** instance of a "micro readline" library */
-microrl_t microrl = {0};
+
 /** ring buffer for writing to usart */
 static ring_buffer_t ring_buffer_tx;
+
 /** ring buffer for sending char to microrl */
 static ring_buffer_t ring_buffer_rx;
+
 /** "tx is busy" flag */
 static volatile zb_uint8_t tx_in_progress;
+
 /** rx_buffer_flush is sheduled flag */
 static volatile zb_uint8_t rx_in_progress;
 
@@ -128,28 +128,42 @@ void print(const char *str) {
     }
 }
 
+/* Actual execute of command.
+ *
+ * it is allow to use delayed get_out_buf by cost of memory. see "execute" function.
+ */
+void delayed_execute(zb_uint8_t param) ZB_CALLBACK {
+    zb_uint8_t i;
+
+    for (i = 0; i < _NUM_OF_CMD; i++) {
+        if (!strcmp(argv_g[0], (char *)(commands[i][0]))) {            
+            ZB_SCHEDULE_CALLBACK((zb_callback_t)commands[i][1], param);
+            return;
+        }
+    }
+    print(
+        "Unknown command.\n\r"
+        "print 'help' to see available commands.\n\r");
+    interrupt_new_line_handler(&microrl);
+}
+
+
 /* execute callback for microrl library
  * warning: don't write to argv; read only
+ *
+ * allow to use delayed get_out_buf by cost of memory
  */
 int execute(int argc, const char *const *argv) {
     if (argc == 0) {
         return 1;
     }
-
-    zb_uint_t i, err = 1;
-
-    for (i = 0; i < _NUM_OF_CMD; i++) {
-        if (!strcmp(argv[0], (char *)(commands[i][0]))) {
-            err = ((cmd_t *)commands[i][1])(argc, argv);
-            break;
-        }
+    /* copy is needed becouse argv not be the same after end of this function */
+    for (argc_g = 0; argc_g < argc; ++argc_g) {        
+        strcpy(argv_g[argc_g], argv[argc_g]);
     }
+    ++argc_g;
 
-    if (err) {
-        print(
-            "Unknown command or argument missed\n\r"
-            "print 'help' to see available commands.\n\r");
-    }
+    ZB_GET_OUT_BUF_DELAYED(delayed_execute);
     return 0;
 }
 
@@ -177,7 +191,6 @@ void init_usart(void) {
     gpio.GPIO_OType = GPIO_OType_PP;
     gpio.GPIO_PuPd = GPIO_PuPd_UP;
     GPIO_Init(GPIOD, &gpio);
-    BAUD_RATE_38400
 
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource5, GPIO_AF_USART2);
     GPIO_PinAFConfig(GPIOD, GPIO_PinSource6, GPIO_AF_USART2);
