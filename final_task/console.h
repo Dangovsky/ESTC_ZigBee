@@ -21,8 +21,7 @@ volatile int argc_g;
  *
  * More importantly it is allow to use delayed get_out_buf by cost of memory. See execute function.
  */
-//char argv_g [_COMMAND_TOKEN_NMB][(zb_uint_t)((_COMMAND_LINE_LEN - 1) / _COMMAND_TOKEN_NMB + 1)];
-char** argv_g;
+char argv_g [_COMMAND_TOKEN_NMB][(zb_uint_t)((_COMMAND_LINE_LEN - 1) / _COMMAND_TOKEN_NMB + 1)];
 
 void print(const char *str);
 

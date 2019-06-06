@@ -11,7 +11,6 @@
 #define ARG_64(a) (zb_uint8_t)((a)[7]), (zb_uint8_t)((a)[6]), (zb_uint8_t)((a)[5]), (zb_uint8_t)((a)[4]), \
                   (zb_uint8_t)((a)[3]), (zb_uint8_t)((a)[2]), (zb_uint8_t)((a)[1]), (zb_uint8_t)((a)[0])
 
-extern microrl_t microrl;
 
 /*
  * IEEE
