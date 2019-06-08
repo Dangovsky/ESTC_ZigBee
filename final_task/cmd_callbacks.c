@@ -14,7 +14,7 @@
                   (zb_uint8_t)((a)[3]), (zb_uint8_t)((a)[2]), (zb_uint8_t)((a)[1]), (zb_uint8_t)((a)[0])
 
 #define ON_RETURN \
-    interrupt_new_line_handler(get_current_microrl());\
+    WRITE_PROMPT  \
     set_command_in_progress(0);
 
 /*

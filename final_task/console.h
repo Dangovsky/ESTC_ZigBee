@@ -3,9 +3,14 @@
 
 #include "./microrl/include/microrl.h"
 
-#define CLEAR_LINE                                         \
+#define CLEAR_LINE                                \
     "\033[2K" /* ESC seq for clear entire line */ \
-    "\r"      
+    "\r"
+
+#define WRITE_PROMPT                            \
+    print("\n\r");                              \
+    print((get_current_microrl())->prompt_str); \
+    (get_current_microrl())->cursor = 0;
 
 #define _CMD_HELP "help"
 #define _CMD_CLEAR "clear"
@@ -26,7 +31,7 @@
  * 
  * Global to allow calls from cmd_handlers.c
  */
-microrl_t* get_current_microrl();
+microrl_t *get_current_microrl();
 
 /** 
  * @brief Return "execute" function argument - num of words in command line.

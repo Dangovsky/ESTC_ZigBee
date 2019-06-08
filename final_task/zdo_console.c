@@ -60,11 +60,11 @@ static struct {
 
     char current_argv[_COMMAND_TOKEN_NMB][WORD_LEN + 1]; /*!< "execute" function argument - words in command line. */
 
-    volatile zb_uint8_t tx_in_progress:1; /*!< "tx is busy" flag */
+    volatile zb_uint8_t tx_in_progress : 1; /*!< "tx is busy" flag */
 
-    volatile zb_uint8_t rx_in_progress:1; /*!< "rx_buffer_flush is scheduled" flag */
+    volatile zb_uint8_t rx_in_progress : 1; /*!< "rx_buffer_flush is scheduled" flag */
 
-    volatile zb_uint8_t command_in_progress:1; /*!< "command is executing or waiting for callback" flag */
+    volatile zb_uint8_t command_in_progress : 1; /*!< "command is executing or waiting for callback" flag */
 } context;
 
 microrl_t *get_current_microrl() {
@@ -79,7 +79,7 @@ char *get_current_argv(zb_uint8_t i) {
     return context.current_argv[i];
 }
 
-void set_command_in_progress(zb_uint8_t flag){
+void set_command_in_progress(zb_uint8_t flag) {
     context.command_in_progress = flag;
 }
 
@@ -103,14 +103,12 @@ void rx_buffer_flush(zb_uint8_t param) ZB_CALLBACK {
 
 void USART2_IRQHandler() {
     if (USART_GetITStatus(USART2, USART_IT_RXNE) != RESET) {
-        if (0 == context.command_in_progress) {
-            if (!ZB_RING_BUFFER_IS_FULL(&(context.ring_buffer_rx))) {
-                ZB_RING_BUFFER_PUT(&(context.ring_buffer_rx), USART_ReceiveData(USART2));
-            }
-            if (!context.rx_in_progress) {
-                context.rx_in_progress = 1;
-                ZB_SCHEDULE_ALARM(rx_buffer_flush, 0, ZB_MILLISECONDS_TO_BEACON_INTERVAL(RX_DELAY)); /* Start sending char to microrl */
-            }
+        if (!ZB_RING_BUFFER_IS_FULL(&(context.ring_buffer_rx))) {
+            ZB_RING_BUFFER_PUT(&(context.ring_buffer_rx), USART_ReceiveData(USART2));
+        }
+        if (!context.rx_in_progress) {
+            context.rx_in_progress = 1;
+            ZB_SCHEDULE_ALARM(rx_buffer_flush, 0, ZB_MILLISECONDS_TO_BEACON_INTERVAL(RX_DELAY)); /* Start sending char to microrl */
         }
 
         USART_ClearITPendingBit(USART2, USART_IT_RXNE);
@@ -167,7 +165,8 @@ void delayed_execute(zb_uint8_t param) ZB_CALLBACK {
     print(CLEAR_LINE
           "Unknown command.\n\r"
           "print 'help' to see available commands.");
-    interrupt_new_line_handler(&(context.microrl));
+    WRITE_PROMPT
+    context.command_in_progress = 0;
 }
 
 /**
@@ -179,6 +178,8 @@ int execute(int argc, const char *const *argv) {
     if (0 == argc || context.command_in_progress) {
         return 1;
     }
+    context.command_in_progress = 1;
+
     /* copy is needed because argv not be the same after end of this function */
     for (context.current_argc = 0; context.current_argc < argc; ++context.current_argc) {
         strcpy(context.current_argv[context.current_argc], argv[context.current_argc]);
@@ -190,8 +191,8 @@ int execute(int argc, const char *const *argv) {
 
 /* sigint callback for microrl library */
 void sigint(void) {
-    print("^C catched!\n\r");
-    interrupt_new_line_handler(&(context.microrl));
+    print("\n\r^C");
+    WRITE_PROMPT
     set_command_in_progress(0);
 }
 
