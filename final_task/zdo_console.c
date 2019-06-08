@@ -8,6 +8,10 @@
 /** Delay before rx_buffer_flush call in milliseconds */
 #define RX_DELAY 100
 
+/** String size used to store one word from console */
+#define WORD_LEN 20
+
+/** Ring buffer length of zb_uint8_t */
 #define RING_BUFFER_LENGTH 16
 ZB_RING_BUFFER_DECLARE(ring_buffer, zb_uint8_t, RING_BUFFER_LENGTH);
 
@@ -15,13 +19,17 @@ ZB_RING_BUFFER_DECLARE(ring_buffer, zb_uint8_t, RING_BUFFER_LENGTH);
  * warning: actual baudrate will be in 1.5 times bigger. see BAUD_RATE_CORRECTION.
  */
 #define BAUD_RATE 38200
-/** Because of zb clock baudrate must be in 1.5 times bigger then on pc */
+/** Because of zb clock, baudrate must be in 1.5 times bigger then on pc */
 #define BAUD_RATE_CORRECTION(b) (zb_uint16_t)((b) + (b) / 2)
 
+/** duplicate ZB macro, but with diffirent USART */
 #define DISABLE_SERIAL_INTER() NVIC_DisableIRQ(USART2_IRQn)
+/** duplicate ZB macro, but with diffirent USART */
 #define ENABLE_SERIAL_INTER() NVIC_EnableIRQ(USART2_IRQn)
 
+/** duplicate ZB macro, but with diffirent USART */
 #define ENABLE_SERIAL_TR_INTER() USART_ITConfig(USART2, USART_IT_TXE, ENABLE)
+/** duplicate ZB macro, but with diffirent USART */
 #define DISABLE_SERIAL_TR_INTER() USART_ITConfig(USART2, USART_IT_TXE, DISABLE)
 
 /** available  commands */
@@ -39,61 +47,85 @@ static const void *commands[_NUM_OF_CMD][2] = {
     {_CMD_DATA_REQ, data_req_handler},
 };
 
-/** array for 'complet' function */
-static char *variants[_NUM_OF_CMD + 1];
+static struct {
+    char *variants[_NUM_OF_CMD + 1]; /*!< array for 'complet' function */
 
-/** ring buffer for writing to usart */
-static ring_buffer_t ring_buffer_tx;
+    ring_buffer_t ring_buffer_tx; /*!< ring buffer for writing to usart */
 
-/** ring buffer for sending char to microrl */
-static ring_buffer_t ring_buffer_rx;
+    ring_buffer_t ring_buffer_rx; /*!< ring buffer for sending char to microrl */
 
-/** "tx is busy" flag */
-static volatile zb_uint8_t tx_in_progress;
+    microrl_t microrl; /*!< Instance of a "micro readline" library. */
 
-/** "rx_buffer_flush is scheduled" flag */
-static volatile zb_uint8_t rx_in_progress;
+    volatile int current_argc; /*!< "execute" function argument - num of words in command line. */
 
+    char current_argv[_COMMAND_TOKEN_NMB][WORD_LEN + 1]; /*!< "execute" function argument - words in command line. */
+
+    volatile zb_uint8_t tx_in_progress:1; /*!< "tx is busy" flag */
+
+    volatile zb_uint8_t rx_in_progress:1; /*!< "rx_buffer_flush is scheduled" flag */
+
+    volatile zb_uint8_t command_in_progress:1; /*!< "command is executing or waiting for callback" flag */
+} context;
+
+microrl_t *get_current_microrl() {
+    return &(context.microrl);
+}
+
+int get_current_argc() {
+    return context.current_argc;
+}
+
+char *get_current_argv(zb_uint8_t i) {
+    return context.current_argv[i];
+}
+
+void set_command_in_progress(zb_uint8_t flag){
+    context.command_in_progress = flag;
+}
+
+/** send all input values from ring_buffer_rx to microrl */
 void rx_buffer_flush(zb_uint8_t param) ZB_CALLBACK {
     DISABLE_SERIAL_INTER();
-    volatile zb_uint8_t *p = ZB_RING_BUFFER_PEEK(&ring_buffer_rx);
+    volatile zb_uint8_t *p = ZB_RING_BUFFER_PEEK(&(context.ring_buffer_rx));
     while (p) {
         ENABLE_SERIAL_INTER();
-        microrl_insert_char(&microrl, *p);
+        microrl_insert_char(&(context.microrl), *p);
         DISABLE_SERIAL_INTER();
 
-        ZB_RING_BUFFER_FLUSH_GET(&ring_buffer_rx);
+        ZB_RING_BUFFER_FLUSH_GET(&(context.ring_buffer_rx));
         /* ((&SER_CTX().tx_buf) -> written--, ((&SER_CTX().tx_buf) -> read_i = ((&SER_CTX().tx_buf)->read_i + 1) % ZB_RING_BUFFER_CAPACITY(&SER_CTX().tx_buf))); 
          */
-        p = ZB_RING_BUFFER_PEEK(&ring_buffer_rx);
+        p = ZB_RING_BUFFER_PEEK(&(context.ring_buffer_rx));
     }
     ENABLE_SERIAL_INTER();
-    rx_in_progress = 0;
+    context.rx_in_progress = 0;
 }
 
 void USART2_IRQHandler() {
     if (USART_GetITStatus(USART2, USART_IT_RXNE) != RESET) {
-        if (!ZB_RING_BUFFER_IS_FULL(&ring_buffer_rx)) {
-            ZB_RING_BUFFER_PUT(&ring_buffer_rx, USART_ReceiveData(USART2));
-        }
-        if (!rx_in_progress) {
-            rx_in_progress = 1;
-            ZB_SCHEDULE_ALARM(rx_buffer_flush, 0, ZB_MILLISECONDS_TO_BEACON_INTERVAL(RX_DELAY)); /* Start sending char to microrl */
+        if (0 == context.command_in_progress) {
+            if (!ZB_RING_BUFFER_IS_FULL(&(context.ring_buffer_rx))) {
+                ZB_RING_BUFFER_PUT(&(context.ring_buffer_rx), USART_ReceiveData(USART2));
+            }
+            if (!context.rx_in_progress) {
+                context.rx_in_progress = 1;
+                ZB_SCHEDULE_ALARM(rx_buffer_flush, 0, ZB_MILLISECONDS_TO_BEACON_INTERVAL(RX_DELAY)); /* Start sending char to microrl */
+            }
         }
 
         USART_ClearITPendingBit(USART2, USART_IT_RXNE);
     }
 
     if (USART_GetITStatus(USART2, USART_IT_TXE) != RESET) {
-        volatile zb_uint8_t *p = ZB_RING_BUFFER_PEEK(&ring_buffer_tx);
+        volatile zb_uint8_t *p = ZB_RING_BUFFER_PEEK(&(context.ring_buffer_tx));
         if (p) {
             USART_SendData(USART2, *p);
-            tx_in_progress = 1;
-            ZB_RING_BUFFER_FLUSH_GET(&ring_buffer_tx);
+            context.tx_in_progress = 1;
+            ZB_RING_BUFFER_FLUSH_GET(&(context.ring_buffer_tx));
             /* ((&SER_CTX().tx_buf) -> written--, ((&SER_CTX().tx_buf) -> read_i = ((&SER_CTX().tx_buf)->read_i + 1) % ZB_RING_BUFFER_CAPACITY(&SER_CTX().tx_buf))); 
              */
         } else { /* No more data */
-            tx_in_progress = 0;
+            context.tx_in_progress = 0;
             DISABLE_SERIAL_TR_INTER();
         }
 
@@ -101,28 +133,25 @@ void USART2_IRQHandler() {
     }
 }
 
-/* print callback for microrl library */
+/** print callback for microrl library */
 void print(const char *str) {
-    zb_uint8_t len;
-
-    while (tx_in_progress)
+    while (context.tx_in_progress)
         ;
-    len = strlen(str);
-    while (len) {
+    while (*str) {
         DISABLE_SERIAL_INTER();
-        if (!ZB_RING_BUFFER_IS_FULL(&ring_buffer_tx)) {
-            ZB_RING_BUFFER_PUT(&ring_buffer_tx, *str);
+        if (!ZB_RING_BUFFER_IS_FULL(&(context.ring_buffer_tx))) {
+            ZB_RING_BUFFER_PUT(&(context.ring_buffer_tx), *str);
             str++;
-            len--;
         }
         ENABLE_SERIAL_INTER();
-        if (!tx_in_progress) {
+        if (!context.tx_in_progress) {
             ENABLE_SERIAL_TR_INTER(); /* Start transmit */
         }
     }
 }
 
-/* Actual executing of the command.
+/**
+ * @brief Actual executing of the command.
  *
  * it is allow to use delayed get_out_buf at the cost of memory. See "execute" function.
  */
@@ -130,7 +159,7 @@ void delayed_execute(zb_uint8_t param) ZB_CALLBACK {
     zb_uint8_t i;
 
     for (i = 0; i < _NUM_OF_CMD; i++) {
-        if (!strcmp(argv_g[0], (char *)(commands[i][0]))) {
+        if (!strcmp(context.current_argv[0], (char *)(commands[i][0]))) {
             ZB_SCHEDULE_CALLBACK((zb_callback_t)commands[i][1], param);
             return;
         }
@@ -138,21 +167,21 @@ void delayed_execute(zb_uint8_t param) ZB_CALLBACK {
     print(CLEAR_LINE
           "Unknown command.\n\r"
           "print 'help' to see available commands.");
-    interrupt_new_line_handler(&microrl);
+    interrupt_new_line_handler(&(context.microrl));
 }
 
-/* execute callback for microrl library
- * warning: don't write to argv; read only
+/**
+ * @brief execute callback for microrl library
  *
  * allow to use delayed get_out_buf at the cost of memory
  */
 int execute(int argc, const char *const *argv) {
-    if (argc == 0) {
+    if (0 == argc || context.command_in_progress) {
         return 1;
     }
     /* copy is needed because argv not be the same after end of this function */
-    for (argc_g = 0; argc_g < argc; ++argc_g) {
-        strcpy(argv_g[argc_g], argv[argc_g]);
+    for (context.current_argc = 0; context.current_argc < argc; ++context.current_argc) {
+        strcpy(context.current_argv[context.current_argc], argv[context.current_argc]);
     }
 
     ZB_GET_OUT_BUF_DELAYED(delayed_execute);
@@ -162,14 +191,16 @@ int execute(int argc, const char *const *argv) {
 /* sigint callback for microrl library */
 void sigint(void) {
     print("^C catched!\n\r");
+    interrupt_new_line_handler(&(context.microrl));
+    set_command_in_progress(0);
 }
 
-/* completion callback for microrl library */
+/** completion callback for microrl library */
 char **complet(int argc, const char *const *argv) {
     zb_uint8_t j = 0;
     char *bit;
 
-    variants[0] = NULL;
+    context.variants[0] = NULL;
 
     /* if there is token in cmdline */
     if (argc == 1) {
@@ -177,21 +208,21 @@ char **complet(int argc, const char *const *argv) {
         bit = (char *)argv[argc - 1];
         /* iterate through our available token and match it */
         for (int i = 0; i < _NUM_OF_CMD; i++) {
-            if (strstr(commands[i][0], bit) == (char *)(commands[i][0])) {
-                variants[j] = (char *)(commands[i][0]);
+            if (!strncmp(commands[i][0], bit, strlen(bit))) {
+                context.variants[j] = (char *)(commands[i][0]);
                 ++j;
             }
         }
-    } else {  // if there is no token in cmdline, just print all available token
+    } else { /* if there is no token in cmdline, just print all available token */
         for (; j < _NUM_OF_CMD; j++) {
-            variants[j] = (char *)(commands[j][0]);
+            context.variants[j] = (char *)(commands[j][0]);
         }
     }
 
     /* note: last ptr in array always must be NULL */
-    variants[j] = NULL;
+    context.variants[j] = NULL;
 
-    return variants;
+    return context.variants;
 }
 
 /* USART2
@@ -234,13 +265,16 @@ void init_usart(void) {
 }
 
 void init_console(void) {
-    tx_in_progress = 0;
-    rx_in_progress = 0;
-    ZB_RING_BUFFER_INIT(&ring_buffer_tx);
-    ZB_RING_BUFFER_INIT(&ring_buffer_rx);
+    context.command_in_progress = 0;
+    context.tx_in_progress = 0;
+    context.rx_in_progress = 0;
+    ZB_RING_BUFFER_INIT(&(context.ring_buffer_tx));
+    ZB_RING_BUFFER_INIT(&(context.ring_buffer_rx));
+
     init_usart();
-    microrl_init(&microrl, print);
-    microrl_set_execute_callback(&microrl, execute);
-    microrl_set_sigint_callback(&microrl, sigint);
-    microrl_set_complete_callback(&microrl, complet);
+
+    microrl_init(&(context.microrl), print);
+    microrl_set_execute_callback(&(context.microrl), execute);
+    microrl_set_sigint_callback(&(context.microrl), sigint);
+    microrl_set_complete_callback(&(context.microrl), complet);
 }

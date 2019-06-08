@@ -1,9 +1,11 @@
 #ifndef CONSOLE_H
 #define CONSOLE_H
 
+#include "./microrl/include/microrl.h"
+
 #define CLEAR_LINE                                         \
-    "\033[2K" /* ESC seq for clear entire line          */ \
-    "\r"      /* ESC seq for move cursor at and of line */
+    "\033[2K" /* ESC seq for clear entire line */ \
+    "\r"      
 
 #define _CMD_HELP "help"
 #define _CMD_CLEAR "clear"
@@ -19,27 +21,29 @@
 
 #define _NUM_OF_CMD 11
 
-#include "./microrl/include/microrl.h"
-
 /** 
- * Instance of a "micro readline" library.
+ * @brief Return instance of a "micro readline" library.
+ * 
  * Global to allow calls from cmd_handlers.c
  */
-microrl_t microrl = {0};
+microrl_t* get_current_microrl();
 
 /** 
- * "execute" function argument - num of words in command line.
+ * @brief Return "execute" function argument - num of words in command line.
+ * 
  * Global to allow use of delayed get_out_buf and to call from cmd_handlers.c
  */
-volatile int argc_g;
+int get_current_argc();
 
 /**
- * "execute" function argument - words in command line.
- * Global to allow use of delayed get_out_buf and to call from cmd_handlers.c.
+ * @brief Return "execute" function argument - i-th word in command line.
  *
+ * Global to allow use of delayed get_out_buf and to call from cmd_handlers.c.
  * More importantly it is allow to use delayed get_out_buf at the cost of memory. See "execute" function.
  */
-char argv_g[_COMMAND_TOKEN_NMB][(zb_uint_t)((_COMMAND_LINE_LEN - 1) / _COMMAND_TOKEN_NMB + 1)];
+char *get_current_argv(zb_uint8_t i);
+
+void set_command_in_progress(zb_uint8_t flag);
 
 void print(const char *str);
 

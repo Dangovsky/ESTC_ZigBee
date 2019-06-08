@@ -2,14 +2,20 @@
 
 /**
  Format for 64-bit address
+ Duplicate ZB`s TRACE_FORMAT_64, cose it is defined for double addr
 */
 #define FORMAT_64 "%hx.%hx.%hx.%hx.%hx.%hx.%hx.%hx"
 
 /**
  Format arguments for 64-bit address
+ Duplicate ZB`s TRACE_FORMAT_64, cose it is defined for double addr
 */
 #define ARG_64(a) (zb_uint8_t)((a)[7]), (zb_uint8_t)((a)[6]), (zb_uint8_t)((a)[5]), (zb_uint8_t)((a)[4]), \
                   (zb_uint8_t)((a)[3]), (zb_uint8_t)((a)[2]), (zb_uint8_t)((a)[1]), (zb_uint8_t)((a)[0])
+
+#define ON_RETURN \
+    interrupt_new_line_handler(get_current_microrl());\
+    set_command_in_progress(0);
 
 /*
  * IEEE
@@ -24,7 +30,8 @@ void ieee_addr_callback(zb_uint8_t param) ZB_CALLBACK {
     sprintf(str, "\tieee address: " FORMAT_64,
             ARG_64(ieee_addr));
     print(str);
-    interrupt_new_line_handler(&microrl);
+
+    ON_RETURN
 }
 #else
 void ieee_addr_callback(zb_uint8_t param) ZB_CALLBACK {
@@ -45,9 +52,10 @@ void ieee_addr_callback(zb_uint8_t param) ZB_CALLBACK {
     sprintf(str, "\tieee address: " FORMAT_64,
             ARG_64(ieee_addr));
     print(str);
-    interrupt_new_line_handler(&microrl);
 
     zb_free_buf(buf);
+
+    ON_RETURN
 }
 #endif /* IEEE_TEST */
 
@@ -66,8 +74,8 @@ void active_ep_callback(zb_uint8_t param) ZB_CALLBACK {
             resp->status, resp->nwk_addr);
     print(str);
 
-    if (resp->status != ZB_ZDP_STATUS_SUCCESS || resp->nwk_addr != 0x0) {
-        print("\n\rError incorrect status/addr");
+    if (resp->status != ZB_ZDP_STATUS_SUCCESS) {
+        print("\n\rError incorrect status");
     }
 
     sprintf(str, "\n\rep count: %hd\n\r", resp->ep_count);
@@ -76,9 +84,10 @@ void active_ep_callback(zb_uint8_t param) ZB_CALLBACK {
         sprintf(str, "%d ", ep_list[i]);
         print(str);
     }
-    interrupt_new_line_handler(&microrl);
 
     zb_free_buf(buf);
+
+    ON_RETURN
 }
 
 /*
@@ -95,8 +104,8 @@ void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
             resp->hdr.status, resp->hdr.nwk_addr);
     print(str);
 
-    if (resp->hdr.status != ZB_ZDP_STATUS_SUCCESS || resp->hdr.nwk_addr != 0x0) {
-        print("> Error incorrect status/addr");
+    if (resp->hdr.status != ZB_ZDP_STATUS_SUCCESS) {
+        print("\n\r> Error incorrect status\n\r");
     }
 
     sprintf(str, "\tep: %d, app profile: %d, dev id: %d, dev ver: %d\n\r",
@@ -133,9 +142,10 @@ void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
         print(str);
         ++ptr;
     }
-    interrupt_new_line_handler(&microrl);
 
     zb_free_buf(buf);
+
+    ON_RETURN
 }
 
 /*
@@ -161,19 +171,19 @@ void neighbors_callback(zb_uint8_t param) ZB_CALLBACK {
     print(str);
 
     for (i = 0; i < resp->neighbor_table_list_count; i++) {
-        sprintf(str, "\n\r#%hd: long addr " FORMAT_64 " pan id " FORMAT_64,
+        sprintf(str, "\n\r#%hd:     long addr " FORMAT_64 " pan id " FORMAT_64,
                 i,
                 ARG_64(record->ext_addr),
                 ARG_64(record->ext_pan_id));
         print(str);
 
-        sprintf(str, "\tnetwork_addr %d, dev_type %hd, rx_on_wen_idle %hd\n\r",
+        sprintf(str, "\n\r\tnetwork_addr %d, dev_type %hd, rx_on_wen_idle %hd",
                 record->network_addr,
                 ZB_ZDO_RECORD_GET_DEVICE_TYPE(record->type_flags),
                 ZB_ZDO_RECORD_GET_RX_ON_WHEN_IDLE(record->type_flags));
         print(str);
 
-        sprintf(str, "\trelationship %hd, permit_join %hd, depth %hd, lqi %hd",
+        sprintf(str, "\n\r\trelationship %hd, permit_join %hd, depth %hd, lqi %hd",
                 ZB_ZDO_RECORD_GET_RELATIONSHIP(record->type_flags),
                 record->permit_join,
                 record->depth,
@@ -182,8 +192,10 @@ void neighbors_callback(zb_uint8_t param) ZB_CALLBACK {
 
         record++;
     }
+
     zb_free_buf(buf);
-    interrupt_new_line_handler(&microrl);
+
+    ON_RETURN
 }
 
 /*
@@ -194,14 +206,15 @@ void nwk_addr_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_zdo_nwk_addr_resp_head_t *resp = (zb_zdo_nwk_addr_resp_head_t *)ZB_BUF_BEGIN(buf);
     char str[100];
 
-    sprintf(str, "Responce status %hd, nwk addr %d\n\rieee addr " FORMAT_64,
+    sprintf(str, "\n\rResponce status %hd, nwk addr %d\n\rieee addr " FORMAT_64,
             resp->status,
             resp->nwk_addr,
             ARG_64(resp->ieee_addr));
     print(str);
-    interrupt_new_line_handler(&microrl);
 
     zb_free_buf(buf);
+
+    ON_RETURN
 }
 
 /*
@@ -211,11 +224,12 @@ void leave_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_uint8_t *ret = (zb_uint8_t *)ZB_BUF_BEGIN(ZB_BUF_FROM_REF(param));
     char str[100];
 
-    sprintf(str, "Leave callback status: %hd", *ret);
+    sprintf(str, "\n\rLeave callback status: %hd", *ret);
     print(str);
-    interrupt_new_line_handler(&microrl);
 
     zb_free_buf(ZB_BUF_FROM_REF(param));
+
+    ON_RETURN
 }
 
 /*
@@ -226,9 +240,10 @@ void permit_joining_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_uint8_t *ret = (zb_uint8_t *)ZB_BUF_BEGIN(buf);
     char str[100];
 
-    sprintf(str, "Permit joining status: %hd", *ret);
+    sprintf(str, "\n\rPermit joining status: %hd\n\r", *ret);
     print(str);
-    interrupt_new_line_handler(&microrl);
 
     zb_free_buf(buf);
+
+    ON_RETURN
 }
