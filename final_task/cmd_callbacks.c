@@ -1,22 +1,5 @@
 #include "console.h"
 
-/**
- Format for 64-bit address
- Duplicate ZB`s TRACE_FORMAT_64, cose it is defined for double addr
-*/
-#define FORMAT_64 "%hx.%hx.%hx.%hx.%hx.%hx.%hx.%hx"
-
-/**
- Format arguments for 64-bit address
- Duplicate ZB`s TRACE_FORMAT_64, cose it is defined for double addr
-*/
-#define ARG_64(a) (zb_uint8_t)((a)[7]), (zb_uint8_t)((a)[6]), (zb_uint8_t)((a)[5]), (zb_uint8_t)((a)[4]), \
-                  (zb_uint8_t)((a)[3]), (zb_uint8_t)((a)[2]), (zb_uint8_t)((a)[1]), (zb_uint8_t)((a)[0])
-
-#define ON_RETURN \
-    WRITE_PROMPT  \
-    set_command_in_progress(0);
-
 /*
  * IEEE
  */

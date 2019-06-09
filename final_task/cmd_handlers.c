@@ -1,18 +1,19 @@
 #include "cmd_callbacks.c"
 #include "console.h"
 
-#define SUCCESS_END_MESS(str)   \
-    print(CLEAR_LINE "> " str); \
-    WRITE_PROMPT                \
-    set_command_in_progress(0);
+/** used when command handeled localy and successfully ended */
+#define SUCCESS_END_MESS(str)       \
+    print(CLEAR_LINE "> " str);     \
+    ON_RETURN 
 
+/** used when command calls remote device and we wait for callback */
 #define SUCCESS_SEND_MESS(str) \
     print(CLEAR_LINE "> " str " request is send.");
 
+/** used when command ended becouse some error */
 #define ERROR_MESS                                                                       \
     print(CLEAR_LINE "> Incorrect arguments. Print 'help', to see commands arguments."); \
-    WRITE_PROMPT                                                                         \
-    set_command_in_progress(0);
+    ON_RETURN 
 
 /*
  * Clear
@@ -25,7 +26,7 @@ void clear_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     if (param) {
         zb_free_buf(ZB_BUF_FROM_REF(param));
     }
-    set_command_in_progress(0);
+    set_current_command(NULL);
     return;
 }
 
@@ -68,7 +69,7 @@ void help_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     if (param) {
         zb_free_buf(ZB_BUF_FROM_REF(param));
     }
-    set_command_in_progress(0);
+    set_current_command(NULL);
     return;
 }
 
@@ -80,21 +81,37 @@ void ieee_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_zdo_ieee_addr_req_t *req;
     zb_uint8_t i = 1;
 
-    if (i >= get_current_argc()) {
-        ERROR_MESS;
-        return;
-    }
     ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_ieee_addr_req_t), req);
-    req->nwk_addr = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
-    req->request_type = ZB_ZDO_SINGLE_DEV_RESPONSE;
-    req->start_index = 0;
+
+    if (i < get_current_argc()) {
+        req->nwk_addr = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
+    }
+
+    if (i >= get_current_argc() || ZB_PIB_SHORT_ADDRESS() == req->nwk_addr) {
+        /* get self address */
+        char str[50];
+
+        sprintf(str, 
+                CLEAR_LINE "> My ieee address: " FORMAT_64,                
+                ARG_64(ZB_PIB_EXTENDED_ADDRESS()));
+        print(str);
+
+        zb_free_buf(buf);
+        ON_RETURN
+    } else {
+        /* remote address request */
+        ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_ieee_addr_req_t), req);
+        req->nwk_addr = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
+        req->request_type = ZB_ZDO_SINGLE_DEV_RESPONSE;
+        req->start_index = 0;
 
 #ifdef IEEE_TEST
-    ZB_SCHEDULE_ALARM(ieee_addr_callback, param, 100);
+        ZB_SCHEDULE_ALARM(ieee_addr_callback, param, 100);
 #else
-    zb_zdo_ieee_addr_req(param, ieee_addr_callback);
+        zb_zdo_ieee_addr_req(param, ieee_addr_callback);
 #endif
-    SUCCESS_SEND_MESS("IEEE");
+        SUCCESS_SEND_MESS("IEEE");
+    }
     return;
 }
 
@@ -106,16 +123,34 @@ void active_ep_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_zdo_active_ep_req_t *req;
     zb_uint8_t i = 1;
 
-    if (i >= get_current_argc()) {
-        ERROR_MESS;
-        return;
-    }
     ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_active_ep_req_t), req);
-    req->nwk_addr = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
 
-    zb_zdo_active_ep_req(param, active_ep_callback);
+    if (i < get_current_argc()) {
+        req->nwk_addr = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
+    }
 
-    SUCCESS_SEND_MESS("Active end points");
+    if (i >= get_current_argc() || ZB_PIB_SHORT_ADDRESS() == req->nwk_addr) {
+        /* get self endpoints */
+        char str[50];
+
+        sprintf(str,
+                CLEAR_LINE
+                "> My ep count: %hd"
+                "\n\r\teps: ", ZB_MAX_EP_NUMBER);
+        print(str);
+        for (i = 0; i < ZB_MAX_EP_NUMBER; ++i) {
+            sprintf(str, "%d ", ZB_ZDO_SIMPLE_DESC_LIST()[i]->endpoint);
+            print(str);
+        }
+
+        zb_free_buf(buf);
+        ON_RETURN
+    } else {
+        /* remote request */
+        zb_zdo_active_ep_req(param, active_ep_callback);
+
+        SUCCESS_SEND_MESS("Active end points");
+    }
     return;
 }
 
@@ -143,6 +178,7 @@ void simple_desk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     req->endpoint = (zb_uint8_t)strtol(get_current_argv(i), NULL, 10);
 
     zb_zdo_simple_desc_req(param, simple_desc_callback);
+
     SUCCESS_SEND_MESS("Simple desk");
     return;
 }
@@ -173,6 +209,7 @@ void neighbors_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_zdo_mgmt_lqi_req(param, neighbors_callback);
 
     SUCCESS_SEND_MESS("Neighbors");
+
     return;
 }
 
