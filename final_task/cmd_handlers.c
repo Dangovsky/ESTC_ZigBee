@@ -206,19 +206,19 @@ void simple_desk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         } else {
             resp_hdr->status = ZB_ZDP_STATUS_INVALID_EP;
         }
-		ZB_LETOH16(&resp_hdr->nwk_addr, &ZB_PIB_SHORT_ADDRESS());
+        ZB_LETOH16(&resp_hdr->nwk_addr, &ZB_PIB_SHORT_ADDRESS());
 
         ZB_SCHEDULE_CALLBACK(simple_desc_callback, param);
 
         print(CLEAR_LINE
-			  "> My simple descriptor:");
+              "> My simple descriptor:");
     } else {
-		/* send remote simple descriptorrequest */
+        /* send remote simple descriptorrequest */
         zb_zdo_simple_desc_req_t *req;
         ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_simple_desc_req_t), req);
         req->nwk_addr = nwk_addr;
         req->endpoint = ep;
-        
+
         zb_zdo_simple_desc_req(param, simple_desc_callback);
 
         SUCCESS_SEND_MESS("Simple desk");
@@ -232,27 +232,80 @@ void simple_desk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
  */
 void neighbors_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
-    zb_zdo_mgmt_lqi_param_t *req;
-    int i = 1;
+    zb_uint8_t i = 1, start_index;
+    zb_uint16_t nwk_addr;
 
-    if (i >= get_current_argc()) {
-        ERROR_MESS;
-        return;
+    if (i < get_current_argc()) {
+        nwk_addr = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
+    } else {
+        nwk_addr = ZB_PIB_SHORT_ADDRESS();
     }
-    req = ZB_GET_BUF_TAIL(buf, sizeof(zb_zdo_mgmt_lqi_param_t));
-    req->dst_addr = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
 
     ++i;
     if (i >= get_current_argc()) {
-        req->start_index = 0;
+        start_index = 0;
     } else {
-        req->start_index = (zb_uint8_t)strtol(get_current_argv(i), NULL, 10);
+        start_index = (zb_uint8_t)strtol(get_current_argv(i), NULL, 10);
     }
 
-    zb_zdo_mgmt_lqi_req(param, neighbors_callback);
+    if (ZB_PIB_SHORT_ADDRESS() == nwk_addr) {
+        /* self simple descriptor 
+         * this is copy of a part of zdo_lqi_resp */
+        zb_zdo_mgmt_lqi_resp_t *resp;
+        zb_zdo_neighbor_table_record_t *record;
+        zb_uint8_t max_records_num;
+        zb_uint8_t records_num;
 
-    SUCCESS_SEND_MESS("Neighbors");
+        i = ZB_APS_HDR_SIZE(ZB_APS_FRAME_DATA)
+#ifdef ZB_SECURITY
+            + sizeof(zb_aps_nwk_aux_frame_hdr_t)
+#endif
+            + ZB_NWK_FULL_HDR_SIZE(1) + ZB_MAC_MAX_HEADER_SIZE(1, 1) + sizeof(zb_zdo_mgmt_lqi_resp_t) + ZB_TAIL_SIZE_FOR_SENDER_MAC_FRAME;
+        max_records_num = ZB_IO_BUF_SIZE / i;
 
+        records_num = (ZG->nwk.neighbor.base_neighbor_used > start_index) ? ZG->nwk.neighbor.base_neighbor_used - start_index : 0;
+        TRACE_MSG(TRACE_ZDO3, "max rec %hd, used %hd, start indx %hd",
+                  (FMT__H_H_H, max_records_num, ZG->nwk.neighbor.base_neighbor_used, start_index));
+
+        records_num = (records_num < max_records_num) ? records_num : max_records_num;
+
+        ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_mgmt_lqi_resp_t) + records_num * sizeof(zb_zdo_neighbor_table_record_t), resp);
+
+        resp->status = ZB_ZDP_STATUS_SUCCESS;
+        resp->neighbor_table_entries = ZG->nwk.neighbor.base_neighbor_used;
+        resp->start_index = start_index;
+        resp->neighbor_table_list_count = records_num;
+        record = (zb_zdo_neighbor_table_record_t *)(resp + 1);
+
+        for (i = 0; i < ZG->nwk.neighbor.base_neighbor_size && records_num; ++i) {
+            if (ZG->nwk.neighbor.base_neighbor[i].used) {
+                ZB_MEMCPY(record->ext_pan_id, ZB_NIB_EXT_PAN_ID(), sizeof(zb_ext_pan_id_t));
+                zb_address_by_ref(record->ext_addr, &record->network_addr, ZG->nwk.neighbor.base_neighbor[i].addr_ref);
+
+                ZB_ZDO_RECORD_SET_DEVICE_TYPE(record->type_flags, ZG->nwk.neighbor.base_neighbor[i].device_type);
+                ZB_ZDO_RECORD_SET_RX_ON_WHEN_IDLE(record->type_flags, ZG->nwk.neighbor.base_neighbor[i].rx_on_when_idle);
+                ZB_ZDO_RECORD_SET_RELATIONSHIP(record->type_flags, ZG->nwk.neighbor.base_neighbor[i].relationship);
+                record->permit_join = ZG->nwk.neighbor.base_neighbor[i].permit_joining;
+                record->depth = ZG->nwk.neighbor.base_neighbor[i].depth;
+                record->lqi = ZG->nwk.neighbor.base_neighbor[i].lqi;
+                records_num--;
+                record++;
+            }
+        }
+
+        ZB_SCHEDULE_CALLBACK(neighbors_callback, param);
+
+        print(CLEAR_LINE
+              "> My neighbors table:");
+    } else {
+        zb_zdo_mgmt_lqi_param_t *req;
+        req = ZB_GET_BUF_TAIL(buf, sizeof(zb_zdo_mgmt_lqi_param_t));
+        req->dst_addr = nwk_addr;
+        req->start_index = start_index;
+
+        zb_zdo_mgmt_lqi_req(param, neighbors_callback);
+        SUCCESS_SEND_MESS("Neighbors");
+    }
     return;
 }
 

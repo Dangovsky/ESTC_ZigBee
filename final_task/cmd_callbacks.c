@@ -143,18 +143,18 @@ void neighbors_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_uint_t i;
     char str[100];
 
-    sprintf(str, "\n\rget_lqi_cb status %hd, neighbor_table_entries %hd",
+    sprintf(str, "\n\r> Mgmt_Lqi_req status %hd, neighbor_table_entries %hd",
             resp->status,
             resp->neighbor_table_entries);
     print(str);
 
-    sprintf(str, "\n\rstart_index %hd, neighbor_table_list_count %d",
+    sprintf(str, "\n\r  start_index %hd, neighbor_table_list_count %d",
             resp->start_index,
             resp->neighbor_table_list_count);
     print(str);
 
     for (i = 0; i < resp->neighbor_table_list_count; i++) {
-        sprintf(str, "\n\r#%hd:     long addr " FORMAT_64 " pan id " FORMAT_64,
+        sprintf(str, "\n\r  #%hd:     long addr " FORMAT_64 " pan id " FORMAT_64,
                 i,
                 ARG_64(record->ext_addr),
                 ARG_64(record->ext_pan_id));
