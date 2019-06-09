@@ -16,39 +16,40 @@
 ZB_RING_BUFFER_DECLARE(ring_buffer, zb_uint8_t, RING_BUFFER_LENGTH);
 
 /**
- * warning: actual baudrate will be in 1.5 times bigger. see BAUD_RATE_CORRECTION.
+ * warning: actual baudrate will be in 1.5 times bigger.
+ * @see BAUD_RATE_CORRECTION(b)
  */
 #define BAUD_RATE 38200
 /** Because of zb clock, baudrate must be in 1.5 times bigger then on pc */
 #define BAUD_RATE_CORRECTION(b) (zb_uint16_t)((b) + (b) / 2)
 
-/** duplicate ZB macro, but with diffirent USART */
+/** duplicate ZB macro, but with different USART */
 #define DISABLE_SERIAL_INTER() NVIC_DisableIRQ(USART2_IRQn)
-/** duplicate ZB macro, but with diffirent USART */
+/** duplicate ZB macro, but with different USART */
 #define ENABLE_SERIAL_INTER() NVIC_EnableIRQ(USART2_IRQn)
 
-/** duplicate ZB macro, but with diffirent USART */
+/** duplicate ZB macro, but with different USART */
 #define ENABLE_SERIAL_TR_INTER() USART_ITConfig(USART2, USART_IT_TXE, ENABLE)
-/** duplicate ZB macro, but with diffirent USART */
+/** duplicate ZB macro, but with different USART */
 #define DISABLE_SERIAL_TR_INTER() USART_ITConfig(USART2, USART_IT_TXE, DISABLE)
 
-/** available  commands */
-static const void *commands[_NUM_OF_CMD][2] = {
-    {_CMD_HELP, help_cmd_handler},
-    {_CMD_CLEAR, clear_cmd_handler},
-    {_CMD_IEEE_ADDR, ieee_cmd_handler},
-    {_CMD_ACTIVE_EP, active_ep_cmd_handler},
-    {_CMD_SIMPLE_DISC, simple_desk_cmd_handler},
-    {_CMD_NEIGHBORS, neighbors_cmd_handler},
-    {_CMD_NWK_ADDR, nwk_addr_cmd_handler},
-    {_CMD_LEAVE, leave_cmd_handler},
-    {_CMD_PERMIT_JOIN, permit_joining_cmd_handler},
-    {_CMD_BEACON_REQ, beacon_cmd_handler},
-    {_CMD_DATA_REQ, data_req_handler},
+/** available  commands and correspinding handlers and callbacks for remote calls */
+static const void *commands[_NUM_OF_CMD][3] = {
+    {_CMD_HELP, help_cmd_handler, NULL},
+    {_CMD_CLEAR, clear_cmd_handler, NULL},
+    {_CMD_IEEE_ADDR, ieee_cmd_handler, ieee_addr_callback},
+    {_CMD_ACTIVE_EP, active_ep_cmd_handler, active_ep_callback},
+    {_CMD_SIMPLE_DISC, simple_desk_cmd_handler, simple_desc_callback},
+    {_CMD_NEIGHBORS, neighbors_cmd_handler, neighbors_callback},
+    {_CMD_NWK_ADDR, nwk_addr_cmd_handler, nwk_addr_callback},
+    {_CMD_LEAVE, leave_cmd_handler, leave_callback},
+    {_CMD_PERMIT_JOIN, permit_joining_cmd_handler, permit_joining_callback},
+    {_CMD_BEACON_REQ, beacon_cmd_handler, NULL},
+    {_CMD_DATA_REQ, data_req_handler, NULL},
 };
 
 static struct {
-    char *variants[_NUM_OF_CMD + 1]; /*!< array for 'complet' function */
+    char *variants[_NUM_OF_CMD + 1]; /*!< array for "complet" function */
 
     ring_buffer_t ring_buffer_tx; /*!< ring buffer for writing to usart */
 
@@ -60,11 +61,11 @@ static struct {
 
     char current_argv[_COMMAND_TOKEN_NMB][WORD_LEN + 1]; /*!< "execute" function argument - words in command line. */
 
+    char *current_command; /*!< command which is currently executing or NULL */
+
     volatile zb_uint8_t tx_in_progress : 1; /*!< "tx is busy" flag */
 
     volatile zb_uint8_t rx_in_progress : 1; /*!< "rx_buffer_flush is scheduled" flag */
-
-    volatile zb_uint8_t command_in_progress : 1; /*!< "command is executing or waiting for callback" flag */
 } context;
 
 microrl_t *get_current_microrl() {
@@ -79,8 +80,8 @@ char *get_current_argv(zb_uint8_t i) {
     return context.current_argv[i];
 }
 
-void set_command_in_progress(zb_uint8_t flag) {
-    context.command_in_progress = flag;
+void set_current_command(char* command_name) {
+    context.current_command = command_name;
 }
 
 /** send all input values from ring_buffer_rx to microrl */
@@ -99,36 +100,6 @@ void rx_buffer_flush(zb_uint8_t param) ZB_CALLBACK {
     }
     ENABLE_SERIAL_INTER();
     context.rx_in_progress = 0;
-}
-
-void USART2_IRQHandler() {
-    if (USART_GetITStatus(USART2, USART_IT_RXNE) != RESET) {
-        if (!ZB_RING_BUFFER_IS_FULL(&(context.ring_buffer_rx))) {
-            ZB_RING_BUFFER_PUT(&(context.ring_buffer_rx), USART_ReceiveData(USART2));
-        }
-        if (!context.rx_in_progress) {
-            context.rx_in_progress = 1;
-            ZB_SCHEDULE_ALARM(rx_buffer_flush, 0, ZB_MILLISECONDS_TO_BEACON_INTERVAL(RX_DELAY)); /* Start sending char to microrl */
-        }
-
-        USART_ClearITPendingBit(USART2, USART_IT_RXNE);
-    }
-
-    if (USART_GetITStatus(USART2, USART_IT_TXE) != RESET) {
-        volatile zb_uint8_t *p = ZB_RING_BUFFER_PEEK(&(context.ring_buffer_tx));
-        if (p) {
-            USART_SendData(USART2, *p);
-            context.tx_in_progress = 1;
-            ZB_RING_BUFFER_FLUSH_GET(&(context.ring_buffer_tx));
-            /* ((&SER_CTX().tx_buf) -> written--, ((&SER_CTX().tx_buf) -> read_i = ((&SER_CTX().tx_buf)->read_i + 1) % ZB_RING_BUFFER_CAPACITY(&SER_CTX().tx_buf))); 
-             */
-        } else { /* No more data */
-            context.tx_in_progress = 0;
-            DISABLE_SERIAL_TR_INTER();
-        }
-
-        USART_ClearITPendingBit(USART2, USART_IT_TXE);
-    }
 }
 
 /** print callback for microrl library */
@@ -158,15 +129,18 @@ void delayed_execute(zb_uint8_t param) ZB_CALLBACK {
 
     for (i = 0; i < _NUM_OF_CMD; i++) {
         if (!strcmp(context.current_argv[0], (char *)(commands[i][0]))) {
+            set_current_command(context.current_argv[0]);
             ZB_SCHEDULE_CALLBACK((zb_callback_t)commands[i][1], param);
             return;
         }
     }
     print(CLEAR_LINE
-          "Unknown command.\n\r"
+          "Unknown command '");
+    print(context.current_argv[0]);
+    print("'\n\r"
           "print 'help' to see available commands.");
     WRITE_PROMPT
-    context.command_in_progress = 0;
+    set_current_command(NULL);
 }
 
 /**
@@ -175,10 +149,11 @@ void delayed_execute(zb_uint8_t param) ZB_CALLBACK {
  * allow to use delayed get_out_buf at the cost of memory
  */
 int execute(int argc, const char *const *argv) {
-    if (0 == argc || context.command_in_progress) {
+    if (0 == argc || context.current_command) {
         return 1;
     }
-    context.command_in_progress = 1;
+    /* to prevent another "execute" before real command name will be known */
+    set_current_command("<tmp>");
 
     /* copy is needed because argv not be the same after end of this function */
     for (context.current_argc = 0; context.current_argc < argc; ++context.current_argc) {
@@ -189,11 +164,32 @@ int execute(int argc, const char *const *argv) {
     return 0;
 }
 
+void test_cb(zb_uint8_t param) ZB_CALLBACK {
+    print("\n\r\ttest\n\r");
+}
+
 /* sigint callback for microrl library */
 void sigint(void) {
+
+    /* TODO: cancel current command callbacks 
+     * this is does not work
+     */
+    /*
+    zb_uint8_t i;
+    for (i = 0; i < _NUM_OF_CMD; i++) {
+        if (!strcmp(context.current_command, (char *)(commands[i][0]))) {
+            zb_schedule_alarm_cancel((zb_callback_t)commands[i][1], ZB_ALARM_ANY_PARAM);
+            if (NULL != commands[i][2]) {
+                zb_schedule_alarm_cancel((zb_callback_t)commands[i][2], ZB_ALARM_ANY_PARAM);
+            }
+        }
+    }
+    */
+
     print("\n\r^C");
     WRITE_PROMPT
-    set_command_in_progress(0);
+
+    set_current_command(NULL);
 }
 
 /** completion callback for microrl library */
@@ -226,8 +222,42 @@ char **complet(int argc, const char *const *argv) {
     return context.variants;
 }
 
+void USART2_IRQHandler() {
+    if (USART_GetITStatus(USART2, USART_IT_RXNE) != RESET) {
+        zb_uint8_t ch = USART_ReceiveData(USART2);
+        /* if command not in process or if user pressed ^C */
+        if (!context.current_command || KEY_ETX == ch) {
+            if (!ZB_RING_BUFFER_IS_FULL(&(context.ring_buffer_rx))) {
+                ZB_RING_BUFFER_PUT(&(context.ring_buffer_rx), ch);
+            }
+            if (!context.rx_in_progress) {
+                context.rx_in_progress = 1;
+                ZB_SCHEDULE_ALARM(rx_buffer_flush, 0, ZB_MILLISECONDS_TO_BEACON_INTERVAL(RX_DELAY)); /* Start sending char to microrl */
+            }
+        }
+
+        USART_ClearITPendingBit(USART2, USART_IT_RXNE);
+    }
+
+    if (USART_GetITStatus(USART2, USART_IT_TXE) != RESET) {
+        volatile zb_uint8_t *p = ZB_RING_BUFFER_PEEK(&(context.ring_buffer_tx));
+        if (p) {
+            USART_SendData(USART2, *p);
+            context.tx_in_progress = 1;
+            ZB_RING_BUFFER_FLUSH_GET(&(context.ring_buffer_tx));
+            /* ((&SER_CTX().tx_buf) -> written--, ((&SER_CTX().tx_buf) -> read_i = ((&SER_CTX().tx_buf)->read_i + 1) % ZB_RING_BUFFER_CAPACITY(&SER_CTX().tx_buf))); 
+             */
+        } else { /* No more data */
+            context.tx_in_progress = 0;
+            DISABLE_SERIAL_TR_INTER();
+        }
+
+        USART_ClearITPendingBit(USART2, USART_IT_TXE);
+    }
+}
+
 /* USART2
- * | TX  | RX  |
+ * | TX | RX  |
  * | PD5 | PD6 |
  */
 void init_usart(void) {
@@ -266,7 +296,7 @@ void init_usart(void) {
 }
 
 void init_console(void) {
-    context.command_in_progress = 0;
+    set_current_command(NULL);
     context.tx_in_progress = 0;
     context.rx_in_progress = 0;
     ZB_RING_BUFFER_INIT(&(context.ring_buffer_tx));
