@@ -1,7 +1,9 @@
 #include "console.h"
 
-/*
- * IEEE
+/**
+ * @brief ieee command callback
+ *
+ * Print IEEE address responce
  */
 #ifdef IEEE_TEST
 void ieee_addr_callback(zb_uint8_t param) ZB_CALLBACK {
@@ -42,8 +44,10 @@ void ieee_addr_callback(zb_uint8_t param) ZB_CALLBACK {
 }
 #endif /* IEEE_TEST */
 
-/*
- * active ep 
+/**
+ * @brief ep command callback
+ *
+ * Print active endpoints responce
  */
 void active_ep_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -73,8 +77,10 @@ void active_ep_callback(zb_uint8_t param) ZB_CALLBACK {
     ON_RETURN
 }
 
-/*
- * simple descriptor 
+/**
+ * @brief simple command callback
+ *
+ * Print simple descriptor responce
  */
 void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -131,9 +137,10 @@ void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
     ON_RETURN
 }
 
-/*
- * Mgmt_Lqi_req 
- * get neighbor table
+/**
+ * @brief neighbors command callback
+ *
+ * Print neighbor table from Mgmt_Lqi_res
  */
 void neighbors_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -154,7 +161,7 @@ void neighbors_callback(zb_uint8_t param) ZB_CALLBACK {
     print(str);
 
     for (i = 0; i < resp->neighbor_table_list_count; i++) {
-        sprintf(str, "\n\r  #%hd:     long addr " FORMAT_64 " pan id " FORMAT_64,
+        sprintf(str, "\n\r  #%hd:   long addr " FORMAT_64 " pan id " FORMAT_64,
                 i,
                 ARG_64(record->ext_addr),
                 ARG_64(record->ext_pan_id));
@@ -181,8 +188,10 @@ void neighbors_callback(zb_uint8_t param) ZB_CALLBACK {
     ON_RETURN
 }
 
-/*
- *  NWK_addr_req
+/**
+ * @brief nwk command callback
+ *
+ * Print NWK address responce
  */
 void nwk_addr_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -200,8 +209,10 @@ void nwk_addr_callback(zb_uint8_t param) ZB_CALLBACK {
     ON_RETURN
 }
 
-/*
- * Mgmt_Leave_req
+/**
+ * @brief leave command callback
+ *
+ * Print Mgmt_Leave_res.
  */
 void leave_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_uint8_t *ret = (zb_uint8_t *)ZB_BUF_BEGIN(ZB_BUF_FROM_REF(param));
@@ -215,8 +226,10 @@ void leave_callback(zb_uint8_t param) ZB_CALLBACK {
     ON_RETURN
 }
 
-/*
- * Permit joining
+/**
+ * @brief permit_join command callback
+ * 
+ * Print permit joining responce. 
  */
 void permit_joining_callback(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);

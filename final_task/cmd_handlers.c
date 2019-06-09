@@ -15,8 +15,10 @@
     print(CLEAR_LINE "> Incorrect arguments. Print 'help', to see commands arguments."); \
     ON_RETURN
 
-/*
- * Clear
+/**
+ * @brief Clear command handler
+ * 
+ * Clear screen. Don`t have callback
  */
 void clear_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     print(
@@ -30,39 +32,49 @@ void clear_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     return;
 }
 
-/*
- * Help
+/**
+ * @brief Help command handler
+ * 
+ * Print help. Don`t have callback
  */
 void help_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     print(
         CLEAR_LINE
-        "Use TAB key for completion\n\rCommands:\n\r");
+        "   * Use TAB key for completion\n\r"
+        "   * Use Ctrl+C to stop command execution\n\r"
+        "   * (opt) stands for 'optional argument'. If not specified, self address will be used\n\r"
+        "   Commands:\n\r");
     print(
         "\t" _CMD_CLEAR
-        "                  - clear screen\n\r"
+        "                       - clear screen\n\r"
         "\t" _CMD_BEACON_REQ
-        "             - send beacon request\n\r"
+        "                  - send beacon request\n\r"
+        "\t" _CMD_ACTIVE_EP
+        " [nwk addr](opt)          - get active endpoints descriptor\n\r");
+    print(
         "\t" _CMD_IEEE_ADDR
-        "        [nwk addr] - get ieee address descriptor\n\r");
+        " [nwk addr](opt)        - get ieee address descriptor\n\r"
+        "\t" _CMD_SIMPLE_DISC
+        " [ep] [nwk addr](opt) - get simple descriptor\n\r");
+    print(
+        "\t" _CMD_NEIGHBORS
+        " [nwk addr](opt) [start_index](opt; default = 0) -\n\r"
+        "\t\t\t- get neighbors table\n\r");
     print(
         "\t" _CMD_PERMIT_JOIN
-        " [duration] [dest_nwk](opt) - open network for new devices for [duration] seconds\n\r"
+        " [duration] [dest_nwk](opt) - \n\r"
+        "\t\t\t- open network for new devices for [duration] seconds\n\r"
         "\t\t\ton 0 - close network, on 255 open till new permit_join request\n\r");
     print(
-        "\t" _CMD_ACTIVE_EP
-        "          [nwk addr] - get active endpoints descriptor\n\r"
-        "\t" _CMD_SIMPLE_DISC
-        "      [nwk addr] [ep] - get simple descriptor\n\r"
-        "\t" _CMD_NEIGHBORS "   [nwk addr] [start_index](opt) - get neighbors table\n\r");
-    print(
         "\t" _CMD_NWK_ADDR
-        "         [ieee addr in 8 space-separated numbers] [dst_nwk](opt) - \n\r"
-        "\t\t\t- get nwk address descriptor\n\r"
+        " [ieee addr in 8 space-separated numbers](opt) [dst_nwk](opt) -\n\r"
+        "\t\t\t- get nwk address descriptor from [dst_nwk]\n\r"
         "\t" _CMD_LEAVE
-        "       [ieee addr in 8 space-separated numbers] - device leave the network\n\r");
+        " [ieee addr in 8 space-separated numbers](opt) [dst_nwk](opt) -\n\r"
+        "\t\t\t- send device leave network request to [dst_nwk]\n\r");
     print(
         "\t" _CMD_DATA_REQ
-        "        [nwk addr] [src ep] [dst ep] [profile id] [payload](opt space-separated)\n\r"
+        " [nwk addr] [src ep] [dst ep] [profile id] [payload](opt space-separated)\n\r"
         "\t\t\t- send apse data request to [nwk addr]");
 
     WRITE_PROMPT
@@ -73,8 +85,11 @@ void help_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     return;
 }
 
-/*
- * IEEE
+/**
+ * @brief ieee command handler
+ *
+ * Send IEEE address request or look for it locally
+ * @see ieee_addr_callback
  */
 void ieee_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -115,8 +130,11 @@ void ieee_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     return;
 }
 
-/*
- * active ep 
+/**
+ * @brief ep command handler
+ *
+ * Send active endpoints request 
+ * @see active_ep_callback
  */
 void active_ep_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -155,8 +173,11 @@ void active_ep_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     return;
 }
 
-/*
- * simple descriptor 
+/**
+ * @brief simple command handler
+ *
+ * Send simple descriptor request
+ * @see simple_desc_callback
  */
 void simple_desk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -226,9 +247,11 @@ void simple_desk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     return;
 }
 
-/*
- * Mgmt_Lqi_req 
- * get neighbor table
+/**
+ * @brief neighbors command handler
+ *
+ * Send Mgmt_Lqi_req to get neighbor table
+ * @see neighbors_callback
  */
 void neighbors_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -309,8 +332,11 @@ void neighbors_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     return;
 }
 
-/*
- *  NWK_addr_req
+/**
+ * @brief nwk command handler
+ *
+ * Send NWK_addr_req, or look locally for address.
+ * @see nwk_addr_callback
  */
 void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf;
@@ -353,7 +379,7 @@ void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         /* self nwk addr request 
          * this is partialy a copy of zdo_device_nwk_addr_res
          */
-        if (ZB_64BIT_ADDR_CMP(ZB_PIB_EXTENDED_ADDRESS(), req->ieee_addr)) {            
+        if (ZB_64BIT_ADDR_CMP(ZB_PIB_EXTENDED_ADDRESS(), req->ieee_addr)) {
             /* it is "my" addr */
             char str[20];
             sprintf(str,
@@ -386,7 +412,7 @@ void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
                         return;
                     }
                 }
-            } 
+            }
             print(CLEAR_LINE "> Don`t find nwk addr localy");
             ON_RETURN
         }
@@ -402,8 +428,11 @@ void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     return;
 }
 
-/*
- * Mgmt_Leave_req
+/**
+ * @brief leave command handler
+ *
+ * Send Mgmt_Leave_req.
+ * @see leave_callback
  */
 void leave_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -421,18 +450,27 @@ void leave_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         req->device_address[7 - j] = (zb_uint8_t)strtol(get_current_argv(i + j), NULL, 16);
     }
 
-    req->dst_addr = 0;
+    i += j;
+    if (i < get_current_argc()) {
+        req->dst_addr = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
+    } else {
+        req->dst_addr = ZB_PIB_SHORT_ADDRESS();
+    }
+
     req->remove_children = ZB_FALSE;
     req->rejoin = ZB_FALSE;
 
     zdo_mgmt_leave_req(param, leave_callback);
 
-    SUCCESS_SEND_MESS("Leave");
+    SUCCESS_SEND_MESS("ZB may not send a callback, please use Ctrl+C.\n\rLeave");
     return;
 }
 
-/*
- * Permit joining
+/**
+ * @brief permit_join command handler
+ * 
+ * Send permit joining request. 
+ * @see permit_joining_callback
  */
 void permit_joining_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
@@ -464,13 +502,15 @@ void permit_joining_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         /* remote device */
         send_req->tc_significance = 0;
         zb_zdo_mgmt_permit_joining_req(param, permit_joining_callback);
-        SUCCESS_SEND_MESS("Permit join");
+        SUCCESS_SEND_MESS("ZB may not send a callback, please use Ctrl+C.\n\rPermit join");
     }
     return;
 }
 
-/*
- * Beacon request
+/**
+ * @brief beacon command handler
+ *
+ * Send beacon request. Don`t have callback
  */
 void beacon_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_beacon_request_command();
@@ -482,8 +522,10 @@ void beacon_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     return;
 }
 
-/*
- * APSE data request
+/**
+ * @brief send command handler
+ * 
+ * Send APSE data request. Don`t have callback
  */
 void data_req_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
