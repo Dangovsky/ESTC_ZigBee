@@ -83,7 +83,7 @@ void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
     char str[100];
     zb_uint_t i;
 
-    sprintf(str, "\n\rSimple descriptor status %hd, addr 0x%x\n\r",
+    sprintf(str, "\n\r> status %hd, addr 0x%x\n\r",
             resp->hdr.status, resp->hdr.nwk_addr);
     print(str);
 
@@ -97,7 +97,7 @@ void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
             resp->simple_desc.app_device_id,
             resp->simple_desc.app_device_version);
     print(str);
-    sprintf(str, "\tinput clusters count: 0x%x\n\r",
+    sprintf(str, "\tinput clusters count: 0x%x",
             resp->simple_desc.app_input_cluster_count);
     print(str);
 

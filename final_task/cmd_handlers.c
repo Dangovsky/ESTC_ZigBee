@@ -2,9 +2,9 @@
 #include "console.h"
 
 /** used when command handeled localy and successfully ended */
-#define SUCCESS_END_MESS(str)       \
-    print(CLEAR_LINE "> " str);     \
-    ON_RETURN 
+#define SUCCESS_END_MESS(str)   \
+    print(CLEAR_LINE "> " str); \
+    ON_RETURN
 
 /** used when command calls remote device and we wait for callback */
 #define SUCCESS_SEND_MESS(str) \
@@ -13,7 +13,7 @@
 /** used when command ended becouse some error */
 #define ERROR_MESS                                                                       \
     print(CLEAR_LINE "> Incorrect arguments. Print 'help', to see commands arguments."); \
-    ON_RETURN 
+    ON_RETURN
 
 /*
  * Clear
@@ -91,8 +91,8 @@ void ieee_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         /* get self address */
         char str[50];
 
-        sprintf(str, 
-                CLEAR_LINE "> My ieee address: " FORMAT_64,                
+        sprintf(str,
+                CLEAR_LINE "> My ieee address: " FORMAT_64,
                 ARG_64(ZB_PIB_EXTENDED_ADDRESS()));
         print(str);
 
@@ -136,7 +136,8 @@ void active_ep_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         sprintf(str,
                 CLEAR_LINE
                 "> My ep count: %hd"
-                "\n\r\teps: ", ZB_MAX_EP_NUMBER);
+                "\n\r\teps: ",
+                ZB_MAX_EP_NUMBER);
         print(str);
         for (i = 0; i < ZB_MAX_EP_NUMBER; ++i) {
             sprintf(str, "%d ", ZB_ZDO_SIMPLE_DESC_LIST()[i]->endpoint);
@@ -159,27 +160,69 @@ void active_ep_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
  */
 void simple_desk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     zb_buf_t *buf = ZB_BUF_FROM_REF(param);
-    zb_zdo_simple_desc_req_t *req;
-    int i = 1;
+    zb_uint8_t i = 1, ep;
+    zb_uint16_t nwk_addr;
 
-    if (i >= get_current_argc()) {
-        ERROR_MESS;
-        return;
-    }
-    ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_simple_desc_req_t), req);
-    req->nwk_addr = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
-
-    ++i;
     if (i >= get_current_argc()) {
         zb_free_buf(buf);
         ERROR_MESS;
         return;
     }
-    req->endpoint = (zb_uint8_t)strtol(get_current_argv(i), NULL, 10);
+    ep = (zb_uint8_t)strtol(get_current_argv(i), NULL, 10);
 
-    zb_zdo_simple_desc_req(param, simple_desc_callback);
+    ++i;
+    if (i < get_current_argc()) {
+        nwk_addr = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
+    }
 
-    SUCCESS_SEND_MESS("Simple desk");
+    if (i >= get_current_argc() || ZB_PIB_SHORT_ADDRESS() == nwk_addr) {
+        /* self simple descriptor 
+         * this is copy of a part of zdo_send_simple_desc_resp */
+        zb_zdo_simple_desc_resp_hdr_t *resp_hdr;
+        zb_af_simple_desc_1_1_t *src_desc = NULL;
+        zb_uint8_t *desc_body;
+
+        ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_simple_desc_resp_hdr_t), resp_hdr);
+        resp_hdr->length = 0;
+
+        if (!ep) {
+            src_desc = (zb_af_simple_desc_1_1_t *)ZB_ZDO_SIMPLE_DESC();
+        } else {
+            for (i = 0; i < ZB_ZDO_SIMPLE_DESC_NUMBER(); i++) {
+                if (ZB_ZDO_SIMPLE_DESC_LIST()[i]->endpoint == ep) {
+                    src_desc = (zb_af_simple_desc_1_1_t *)ZB_ZDO_SIMPLE_DESC_LIST()[i];
+                }
+            }
+        }
+
+        if (src_desc) {
+            resp_hdr->status = ZB_ZDP_STATUS_SUCCESS;
+            resp_hdr->length = sizeof(zb_af_simple_desc_1_1_t) +
+                               /* take into account app_cluster_list */
+                               (src_desc->app_input_cluster_count + src_desc->app_output_cluster_count - 2) * sizeof(zb_uint16_t);
+
+            ZB_BUF_ALLOC_RIGHT(buf, resp_hdr->length, desc_body);
+            zb_copy_simple_desc((zb_af_simple_desc_1_1_t *)desc_body, src_desc);
+        } else {
+            resp_hdr->status = ZB_ZDP_STATUS_INVALID_EP;
+        }
+		ZB_LETOH16(&resp_hdr->nwk_addr, &ZB_PIB_SHORT_ADDRESS());
+
+        ZB_SCHEDULE_CALLBACK(simple_desc_callback, param);
+
+        print(CLEAR_LINE
+			  "> My simple descriptor:");
+    } else {
+		/* send remote simple descriptorrequest */
+        zb_zdo_simple_desc_req_t *req;
+        ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_simple_desc_req_t), req);
+        req->nwk_addr = nwk_addr;
+        req->endpoint = ep;
+        
+        zb_zdo_simple_desc_req(param, simple_desc_callback);
+
+        SUCCESS_SEND_MESS("Simple desk");
+    }
     return;
 }
 
