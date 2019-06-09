@@ -313,10 +313,22 @@ void neighbors_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
  *  NWK_addr_req
  */
 void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
-    zb_buf_t *buf = ZB_BUF_FROM_REF(param);
+    zb_buf_t *buf;
     zb_zdo_nwk_addr_req_param_t *req;
     zb_uint8_t i = 1, j;
 
+    /* if there are no arguments */
+    if (i >= get_current_argc()) {
+        char str[20];
+        sprintf(str,
+                CLEAR_LINE "> My nwk addr: %hd",
+                ZB_PIB_SHORT_ADDRESS());
+        print(str);
+        ON_RETURN
+        return;
+    }
+
+    buf = ZB_BUF_FROM_REF(param);
     req = ZB_GET_BUF_PARAM(buf, zb_zdo_nwk_addr_req_param_t);
 
     for (j = 0; j < 8; j++) {
@@ -328,19 +340,65 @@ void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         req->ieee_addr[7 - j] = (zb_uint8_t)strtol(get_current_argv(i + j), NULL, 16);
     }
 
+    //  ZB_64BIT_ADDR_CMP(ZB_PIB_EXTENDED_ADDRESS(), req.ieee_addr);
+
     i += j;
     if (i < get_current_argc()) {
         req->dst_addr = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
     } else {
-        req->dst_addr = 0;
+        req->dst_addr = ZB_PIB_SHORT_ADDRESS();
     }
 
-    req->request_type = ZB_ZDO_SINGLE_DEVICE_RESP;
-    req->start_index = 0;
+    if (ZB_PIB_SHORT_ADDRESS() == req->dst_addr) {
+        /* self nwk addr request 
+         * this is partialy a copy of zdo_device_nwk_addr_res
+         */
+        if (ZB_64BIT_ADDR_CMP(ZB_PIB_EXTENDED_ADDRESS(), req->ieee_addr)) {            
+            /* it is "my" addr */
+            char str[20];
+            sprintf(str,
+                    CLEAR_LINE "> My nwk addr: %hd",
+                    ZB_PIB_SHORT_ADDRESS());
+            print(str);
+            ON_RETURN
+            zb_free_buf(buf);
+            return;
+        } else {
+            /* look for addr localy */
+            zb_uint8_t i;
+            zb_ieee_addr_t ieee_addr;
+            zb_uint16_t nwk_addr = ZB_UNKNOWN_SHORT_ADDR;
+            char str[20];
 
-    zb_zdo_nwk_addr_req(param, nwk_addr_callback);
+            for (i = 0; i < ZB_NEIGHBOR_TABLE_SIZE; ++i) {
+                if (ZG->nwk.neighbor.base_neighbor[i].used) {
+                    zb_address_ieee_by_ref(ieee_addr, ZG->nwk.neighbor.base_neighbor[i].addr_ref);
+                    if (ZB_64BIT_ADDR_CMP(ieee_addr, req->ieee_addr)) {
+                        zb_address_short_by_ref(&nwk_addr, ZG->nwk.neighbor.base_neighbor[i].addr_ref);
 
-    SUCCESS_SEND_MESS("NWK");
+                        sprintf(str,
+                                CLEAR_LINE "> Localy found nwk addr: %hd",
+                                nwk_addr);
+                        print(str);
+                        ON_RETURN
+
+                        zb_free_buf(buf);
+                        return;
+                    }
+                }
+            } 
+            print(CLEAR_LINE "> Don`t find nwk addr localy");
+            ON_RETURN
+        }
+    } else {
+        /* Remote nwk addr request */
+        req->request_type = ZB_ZDO_SINGLE_DEVICE_RESP;
+        req->start_index = 0;
+
+        zb_zdo_nwk_addr_req(param, nwk_addr_callback);
+
+        SUCCESS_SEND_MESS("NWK");
+    }
     return;
 }
 
