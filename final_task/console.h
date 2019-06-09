@@ -68,8 +68,16 @@ int get_current_argc();
  */
 char *get_current_argv(zb_uint8_t i);
 
-void set_current_command(char* command_name);
+/**
+ * @brief Allow command handlers and callbacks to 'say', that command execution is ended * 
+ */
+void set_current_command(char *command_name);
 
+/**
+ * @brief print callback for microrl library
+ * 
+ * Global to allow calls from from cmd_handlers.c
+ */
 void print(const char *str);
 
 #endif /* CONSOLE_H */

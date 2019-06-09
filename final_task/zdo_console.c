@@ -80,11 +80,13 @@ char *get_current_argv(zb_uint8_t i) {
     return context.current_argv[i];
 }
 
-void set_current_command(char* command_name) {
+void set_current_command(char *command_name) {
     context.current_command = command_name;
 }
 
-/** send all input values from ring_buffer_rx to microrl */
+/**
+ * @brief send all input values from ring_buffer_rx to microrl 
+ */
 void rx_buffer_flush(zb_uint8_t param) ZB_CALLBACK {
     DISABLE_SERIAL_INTER();
     volatile zb_uint8_t *p = ZB_RING_BUFFER_PEEK(&(context.ring_buffer_rx));
@@ -102,7 +104,6 @@ void rx_buffer_flush(zb_uint8_t param) ZB_CALLBACK {
     context.rx_in_progress = 0;
 }
 
-/** print callback for microrl library */
 void print(const char *str) {
     while (context.tx_in_progress)
         ;
@@ -137,8 +138,9 @@ void delayed_execute(zb_uint8_t param) ZB_CALLBACK {
     print(CLEAR_LINE
           "Unknown command '");
     print(context.current_argv[0]);
-    print("'\n\r"
-          "print 'help' to see available commands.");
+    print(
+        "'\n\r"
+        "print 'help' to see available commands.");
     WRITE_PROMPT
     set_current_command(NULL);
 }
@@ -164,35 +166,19 @@ int execute(int argc, const char *const *argv) {
     return 0;
 }
 
-void test_cb(zb_uint8_t param) ZB_CALLBACK {
-    print("\n\r\ttest\n\r");
-}
-
-/* sigint callback for microrl library */
+/**
+ * @brief sigint callback for microrl library
+ */ 
 void sigint(void) {
-
-    /* TODO: cancel current command callbacks 
-     * this is does not work
-     */
-    /*
-    zb_uint8_t i;
-    for (i = 0; i < _NUM_OF_CMD; i++) {
-        if (!strcmp(context.current_command, (char *)(commands[i][0]))) {
-            zb_schedule_alarm_cancel((zb_callback_t)commands[i][1], ZB_ALARM_ANY_PARAM);
-            if (NULL != commands[i][2]) {
-                zb_schedule_alarm_cancel((zb_callback_t)commands[i][2], ZB_ALARM_ANY_PARAM);
-            }
-        }
-    }
-    */
-
     print("\n\r^C");
     WRITE_PROMPT
 
     set_current_command(NULL);
 }
 
-/** completion callback for microrl library */
+/**
+ * @brief completion callback for microrl library
+ */
 char **complet(int argc, const char *const *argv) {
     zb_uint8_t j = 0;
     char *bit;
@@ -256,9 +242,12 @@ void USART2_IRQHandler() {
     }
 }
 
-/* USART2
- * | TX | RX  |
- * | PD5 | PD6 |
+/**
+ * @brief initialise function for usart
+ * 
+ * Initialise USART2 with
+ * * PD5 as TX
+ * * PD6 as RX
  */
 void init_usart(void) {
     GPIO_InitTypeDef gpio = {0};
@@ -295,6 +284,9 @@ void init_usart(void) {
     USART_ITConfig(USART2, USART_IT_RXNE, ENABLE);
 }
 
+/**
+ * @brief initialise function for console
+ */
 void init_console(void) {
     set_current_command(NULL);
     context.tx_in_progress = 0;
