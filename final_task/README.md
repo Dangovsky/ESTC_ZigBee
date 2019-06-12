@@ -10,7 +10,7 @@ Project splitted is files:
  * [zdo_console.c](zdo_console.c) - [microrl](https://github.com/Helius/microrl) and usart setup
  * [zdo_console.h](zdo_console.h) - header with defines and struct for zdo_cansole.c
  * [console.h](console.h) - api for zdo_console
- * [cmd_handlers.c](cmd_handlers.c) - functions to call on recieved command
+ * [cmd_handlers.c](cmd_handlers.c) - functions to handle recieved command
  * [cmd_callbacks.c](cmd_callbacks.c) - callbacks for remote responses
 
 ## Pins setup
