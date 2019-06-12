@@ -1,19 +1,8 @@
 #include "cmd_callbacks.c"
 #include "console.h"
 
-/** used when command handeled localy and successfully ended */
-#define SUCCESS_END_MESS(str)   \
-    print(CLEAR_LINE "> " str); \
-    ON_RETURN
-
-/** used when command calls remote device and we wait for callback */
-#define SUCCESS_SEND_MESS(str) \
-    print(CLEAR_LINE "> " str " request is send.");
-
-/** used when command ended becouse some error */
-#define ERROR_MESS                                                                       \
-    print(CLEAR_LINE "> Incorrect arguments. Print 'help', to see commands arguments."); \
-    ON_RETURN
+/** error message */
+static char *err_mess = "Incorrect arguments. Print 'help', to see commands arguments.";
 
 /**
  * @brief Clear command handler
@@ -24,12 +13,11 @@ void clear_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     print(
         "\033[2J"  /* ESC seq for clear entire screen            */
         "\033[H"); /* ESC seq for move cursor at left-top corner */
-    WRITE_PROMPT
+    write_prompt();
     if (param) {
         zb_free_buf(ZB_BUF_FROM_REF(param));
     }
     set_current_command(NULL);
-    return;
 }
 
 /**
@@ -43,6 +31,7 @@ void help_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         "   * Use TAB key for completion\n\r"
         "   * Use Ctrl+C to stop command execution\n\r"
         "   * (opt) stands for 'optional argument'. If not specified, self address will be used\n\r"
+        "   * IEEE and NWK addresses expected in hex, other parameters - in decimal\n\r"
         "   Commands:\n\r");
     print(
         "\t" _CMD_CLEAR
@@ -67,22 +56,21 @@ void help_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         "\t\t\ton 0 - close network, on 255 open till new permit_join request\n\r");
     print(
         "\t" _CMD_NWK_ADDR
-        " [ieee addr in 8 space-separated numbers](opt) [dst_nwk](opt) -\n\r"
+        "   [ieee addr in 8 space-separated numbers](opt) [dst_nwk](opt) -\n\r"
         "\t\t\t- get nwk address descriptor from [dst_nwk]\n\r"
         "\t" _CMD_LEAVE
         " [ieee addr in 8 space-separated numbers](opt) [dst_nwk](opt) -\n\r"
         "\t\t\t- send device leave network request to [dst_nwk]\n\r");
     print(
         "\t" _CMD_DATA_REQ
-        " [nwk addr] [src ep] [dst ep] [profile id] [payload](opt space-separated)\n\r"
+        "  [nwk addr] [src ep] [dst ep] [profile id] [payload](may be space-separated)\n\r"
         "\t\t\t- send apse data request to [nwk addr]");
 
-    WRITE_PROMPT
+    write_prompt();
     if (param) {
         zb_free_buf(ZB_BUF_FROM_REF(param));
     }
     set_current_command(NULL);
-    return;
 }
 
 /**
@@ -112,7 +100,7 @@ void ieee_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         print(str);
 
         zb_free_buf(buf);
-        ON_RETURN
+        on_return();
     } else {
         /* remote address request */
         ZB_BUF_INITIAL_ALLOC(buf, sizeof(zb_zdo_ieee_addr_req_t), req);
@@ -125,9 +113,10 @@ void ieee_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
 #else
         zb_zdo_ieee_addr_req(param, ieee_addr_callback);
 #endif
-        SUCCESS_SEND_MESS("IEEE");
+        print(CLEAR_LINE
+              "> "
+              "IEEE request is send.");
     }
-    return;
 }
 
 /**
@@ -163,14 +152,15 @@ void active_ep_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         }
 
         zb_free_buf(buf);
-        ON_RETURN
+        on_return();
     } else {
         /* remote request */
         zb_zdo_active_ep_req(param, active_ep_callback);
 
-        SUCCESS_SEND_MESS("Active end points");
+        print(CLEAR_LINE
+              "> "
+              "Active end points request is send.");
     }
-    return;
 }
 
 /**
@@ -186,7 +176,9 @@ void simple_desk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
 
     if (i >= get_current_argc()) {
         zb_free_buf(buf);
-        ERROR_MESS;
+        print(CLEAR_LINE "> ");
+        print(err_mess);
+        on_return();
         return;
     }
     ep = (zb_uint8_t)strtol(get_current_argv(i), NULL, 10);
@@ -242,9 +234,10 @@ void simple_desk_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
 
         zb_zdo_simple_desc_req(param, simple_desc_callback);
 
-        SUCCESS_SEND_MESS("Simple desk");
+        print(CLEAR_LINE
+              "> "
+              "Simple desk request is send.");
     }
-    return;
 }
 
 /**
@@ -327,9 +320,11 @@ void neighbors_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         req->start_index = start_index;
 
         zb_zdo_mgmt_lqi_req(param, neighbors_callback);
-        SUCCESS_SEND_MESS("Neighbors");
+
+        print(CLEAR_LINE
+              "> "
+              "Neighbors request is send.");
     }
-    return;
 }
 
 /**
@@ -350,7 +345,7 @@ void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
                 CLEAR_LINE "> My nwk addr: %hd",
                 ZB_PIB_SHORT_ADDRESS());
         print(str);
-        ON_RETURN
+        on_return();
         return;
     }
 
@@ -360,7 +355,9 @@ void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     for (j = 0; j < 8; j++) {
         if (j + i >= get_current_argc()) {
             zb_free_buf(buf);
-            ERROR_MESS;
+            print(CLEAR_LINE "> ");
+            print(err_mess);
+            on_return();
             return;
         }
         req->ieee_addr[7 - j] = (zb_uint8_t)strtol(get_current_argv(i + j), NULL, 16);
@@ -386,7 +383,7 @@ void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
                     CLEAR_LINE "> My nwk addr: %hd",
                     ZB_PIB_SHORT_ADDRESS());
             print(str);
-            ON_RETURN
+            on_return();
             zb_free_buf(buf);
             return;
         } else {
@@ -406,7 +403,7 @@ void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
                                 CLEAR_LINE "> Localy found nwk addr: %hd",
                                 nwk_addr);
                         print(str);
-                        ON_RETURN
+                        on_return();
 
                         zb_free_buf(buf);
                         return;
@@ -414,7 +411,7 @@ void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
                 }
             }
             print(CLEAR_LINE "> Don`t find nwk addr localy");
-            ON_RETURN
+            on_return();
         }
     } else {
         /* Remote nwk addr request */
@@ -423,9 +420,10 @@ void nwk_addr_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
 
         zb_zdo_nwk_addr_req(param, nwk_addr_callback);
 
-        SUCCESS_SEND_MESS("NWK");
+        print(CLEAR_LINE
+              "> "
+              "NWK address request is send.");
     }
-    return;
 }
 
 /**
@@ -444,7 +442,9 @@ void leave_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     for (j = 0; j < 8; j++) {
         if (j + i >= get_current_argc()) {
             zb_free_buf(buf);
-            ERROR_MESS;
+            print(CLEAR_LINE "> ");
+            print(err_mess);
+            on_return();
             return;
         }
         req->device_address[7 - j] = (zb_uint8_t)strtol(get_current_argv(i + j), NULL, 16);
@@ -462,8 +462,9 @@ void leave_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
 
     zdo_mgmt_leave_req(param, leave_callback);
 
-    SUCCESS_SEND_MESS("ZB may not send a callback, please use Ctrl+C.\n\rLeave");
-    return;
+    print(CLEAR_LINE
+          "> "
+          "ZB may not send a callback, please use Ctrl+C.\n\rLeave request is send.");
 }
 
 /**
@@ -480,7 +481,9 @@ void permit_joining_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
 
     if (i >= get_current_argc()) {
         zb_free_buf(buf);
-        ERROR_MESS;
+        print(CLEAR_LINE "> ");
+        print(err_mess);
+        on_return();
         return;
     }
     send_req = ZB_GET_BUF_PARAM(buf, zb_zdo_mgmt_permit_joining_req_param_t);
@@ -497,14 +500,19 @@ void permit_joining_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
         local_req->permit_duration = send_req->permit_duration;
         ZB_SCHEDULE_CALLBACK(zb_nlme_permit_joining_request, param);
 
-        SUCCESS_END_MESS("Permit joining is reset");
+        print(CLEAR_LINE
+              "> "
+              "Permit joining is reset");
+        on_return();
     } else {
         /* remote device */
         send_req->tc_significance = 0;
         zb_zdo_mgmt_permit_joining_req(param, permit_joining_callback);
-        SUCCESS_SEND_MESS("ZB may not send a callback, please use Ctrl+C.\n\rPermit join");
+
+        print(CLEAR_LINE
+              "> "
+              "ZB may not send a callback, please use Ctrl+C.\n\rPermit join request is send.");
     }
-    return;
 }
 
 /**
@@ -518,8 +526,10 @@ void beacon_cmd_handler(zb_uint8_t param) ZB_CALLBACK {
     if (param) {
         zb_free_buf(ZB_BUF_FROM_REF(param));
     }
-    SUCCESS_END_MESS("Beacon request is send");
-    return;
+    print(CLEAR_LINE
+          "> "
+          "Beacon request is send");
+    on_return();
 }
 
 /**
@@ -535,7 +545,9 @@ void data_req_handler(zb_uint8_t param) ZB_CALLBACK {
 
     if (i >= get_current_argc()) {
         zb_free_buf(buf);
-        ERROR_MESS;
+        print(CLEAR_LINE "> ");
+        print(err_mess);
+        on_return();
         return;
     }
     req->dst_addr.addr_short = (zb_uint8_t)strtol(get_current_argv(i), NULL, 16);
@@ -543,7 +555,9 @@ void data_req_handler(zb_uint8_t param) ZB_CALLBACK {
     ++i;
     if (i >= get_current_argc()) {
         zb_free_buf(buf);
-        ERROR_MESS;
+        print(CLEAR_LINE "> ");
+        print(err_mess);
+        on_return();
         return;
     }
     req->src_endpoint = (zb_uint8_t)strtol(get_current_argv(i), NULL, 10);
@@ -551,7 +565,9 @@ void data_req_handler(zb_uint8_t param) ZB_CALLBACK {
     ++i;
     if (i >= get_current_argc()) {
         zb_free_buf(buf);
-        ERROR_MESS;
+        print(CLEAR_LINE "> ");
+        print(err_mess);
+        on_return();
         return;
     }
     req->dst_endpoint = (zb_uint8_t)strtol(get_current_argv(i), NULL, 10);
@@ -559,7 +575,9 @@ void data_req_handler(zb_uint8_t param) ZB_CALLBACK {
     ++i;
     if (i >= get_current_argc()) {
         zb_free_buf(buf);
-        ERROR_MESS;
+        print(CLEAR_LINE "> ");
+        print(err_mess);
+        on_return();
         return;
     }
     req->profileid = (zb_uint8_t)strtol(get_current_argv(i), NULL, 10);
@@ -568,7 +586,9 @@ void data_req_handler(zb_uint8_t param) ZB_CALLBACK {
     ++i;
     if (i >= get_current_argc()) {
         zb_free_buf(buf);
-        ERROR_MESS;
+        print(CLEAR_LINE "> ");
+        print(err_mess);
+        on_return();
         return;
     }
     ZB_BUF_INITIAL_ALLOC(buf, strlen(get_current_argv(i)), ptr);
@@ -588,6 +608,8 @@ void data_req_handler(zb_uint8_t param) ZB_CALLBACK {
 
     ZB_SCHEDULE_CALLBACK(zb_apsde_data_request, ZB_REF_FROM_BUF(buf));
 
-    SUCCESS_END_MESS("Sendind apse data request");
-    return;
+    print(CLEAR_LINE
+          "> "
+          "Sendind apse data request");
+    on_return();
 }

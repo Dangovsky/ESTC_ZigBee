@@ -16,7 +16,7 @@ void ieee_addr_callback(zb_uint8_t param) ZB_CALLBACK {
             ARG_64(ieee_addr));
     print(str);
 
-    ON_RETURN
+    on_return();
 }
 #else
 void ieee_addr_callback(zb_uint8_t param) ZB_CALLBACK {
@@ -40,7 +40,7 @@ void ieee_addr_callback(zb_uint8_t param) ZB_CALLBACK {
 
     zb_free_buf(buf);
 
-    ON_RETURN
+    on_return();
 }
 #endif /* IEEE_TEST */
 
@@ -74,7 +74,7 @@ void active_ep_callback(zb_uint8_t param) ZB_CALLBACK {
 
     zb_free_buf(buf);
 
-    ON_RETURN
+    on_return();
 }
 
 /**
@@ -134,7 +134,7 @@ void simple_desc_callback(zb_uint8_t param) ZB_CALLBACK {
 
     zb_free_buf(buf);
 
-    ON_RETURN
+    on_return();
 }
 
 /**
@@ -185,7 +185,7 @@ void neighbors_callback(zb_uint8_t param) ZB_CALLBACK {
 
     zb_free_buf(buf);
 
-    ON_RETURN
+    on_return();
 }
 
 /**
@@ -206,7 +206,7 @@ void nwk_addr_callback(zb_uint8_t param) ZB_CALLBACK {
 
     zb_free_buf(buf);
 
-    ON_RETURN
+    on_return();
 }
 
 /**
@@ -223,7 +223,7 @@ void leave_callback(zb_uint8_t param) ZB_CALLBACK {
 
     zb_free_buf(ZB_BUF_FROM_REF(param));
 
-    ON_RETURN
+    on_return();
 }
 
 /**
@@ -241,5 +241,5 @@ void permit_joining_callback(zb_uint8_t param) ZB_CALLBACK {
 
     zb_free_buf(buf);
 
-    ON_RETURN
+    on_return();
 }

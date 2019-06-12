@@ -3,21 +3,10 @@
 
 #include "./microrl/include/microrl.h"
 
-/** used to correctly end command execution */
-#define ON_RETURN \
-    WRITE_PROMPT  \
-    set_current_command(NULL);
-
 /** used for clearing prompt message */
 #define CLEAR_LINE                                \
     "\033[2K" /* ESC seq for clear entire line */ \
     "\r"
-
-/** used for writing prompt message */
-#define WRITE_PROMPT                            \
-    print("\n\r");                              \
-    print((get_current_microrl())->prompt_str); \
-    (get_current_microrl())->cursor = 0;
 
 /**
  Format for 64-bit address
@@ -79,5 +68,15 @@ void set_current_command(char *command_name);
  * Global to allow calls from from cmd_handlers.c
  */
 void print(const char *str);
+
+/**
+ * @brief used for writing prompt message 
+ */
+void write_prompt(void);
+
+/**
+ * @brief used for correctly end command execution 
+ */
+void on_return(void);
 
 #endif /* CONSOLE_H */
