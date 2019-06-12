@@ -30,3 +30,6 @@ Can work on timers or on zboss alarms, based on defines `BUTTONS_TIMER` and `BUT
 Provides protocol for bulb-remote control interaction over zigbee.
  * Bulb use `parse_packet` as data indicaction and past callbacks for nended commands to `init_zbulb`
  * Remote control send command wia provided `bulb_send_*_command` functions.
+
+## [fiinal task](fiinal_task)
+Command prompt to work with zboss. See [README](final_task/README.md) for more info
